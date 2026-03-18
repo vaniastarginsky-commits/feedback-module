@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feedback Loop — Signal Flow</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0e0e1a;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ── Controls ── */
+.controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.sw-btn {
+  padding: 11px 22px;
+  border-radius: 9px;
+  border: 2px solid;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+  transition: all 0.15s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-width: 160px;
+}
+.sw-btn.sw1 { border-color: #1E8840; }
+.sw-btn.sw1.is-loop { background: #1E8840; color: #fff; }
+.sw-btn.sw1.is-main { background: #060f08; color: #1E8840; }
+.sw-btn.sw2 { border-color: #6E24A0; }
+.sw-btn.sw2.is-loop { background: #6E24A0; color: #fff; }
+.sw-btn.sw2.is-main { background: #0a0416; color: #9B5DD4; }
+
+.info-btn {
+  padding: 11px 22px;
+  border-radius: 9px;
+  border: 2px solid #2a4a6a;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+  transition: all 0.15s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-width: 160px;
+  background: #0a1520;
+  color: #5a9abb;
+}
+.info-btn:hover { background: #0f1e2e; color: #7abcdd; border-color: #3a6a8a; }
+.info-btn.active { background: #112436; color: #88ccee; border-color: #5590b8; }
+
+.combo {
+  color: #888;
+  font-size: 12px;
+  margin-bottom: 12px;
+  min-height: 16px;
+  text-align: center;
+  padding: 0 8px;
+}
+.combo b { color: #ddd; }
+
+/* ── Layout ── */
+.layout {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 1180px;
+}
+
+/* ── SVG container ── */
+.svg-wrap {
+  flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  max-width: 820px;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+.svg-wrap::-webkit-scrollbar { height: 4px; }
+.svg-wrap::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+.svg-wrap svg {
+  display: block;
+  min-width: 820px;
+}
+
+/* ── Desktop panel ── */
+.panel {
+  width: 310px;
+  min-height: 260px;
+  background: #161626;
+  border: 1px solid #252545;
+  border-radius: 12px;
+  padding: 18px 16px;
+  color: #bbb;
+  font-size: 12px;
+  line-height: 1.65;
+  flex-shrink: 0;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a44 transparent;
+}
+.panel::-webkit-scrollbar { width: 4px; }
+.panel::-webkit-scrollbar-thumb { background: #2a2a44; border-radius: 2px; }
+
+/* ── Shared panel content styles ── */
+.panel-content h3, .sheet-content h3 {
+  color: #fff;
+  font-size: 15px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #2a2a4a;
+}
+.panel-content h4, .sheet-content h4 {
+  color: #aad;
+  font-size: 12px;
+  margin: 10px 0 4px;
+}
+.panel-content .tag, .sheet-content .tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+.panel-content ul, .sheet-content ul {
+  padding-left: 14px;
+  margin-top: 5px;
+}
+.panel-content ul li, .sheet-content ul li { margin-bottom: 3px; }
+.panel-content .chip, .sheet-content .chip {
+  background: #1e1e36;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 6px 9px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #9ad;
+}
+.panel-content .hint, .sheet-content .hint {
+  color: #444;
+  font-style: italic;
+  text-align: center;
+  margin-top: 40px;
+  line-height: 1.8;
+}
+
+/* ── Project info specific styles ── */
+.erc-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+.erc-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.erc-step .n { font-size: 16px; font-weight: bold; line-height: 1; }
+.erc-step .l { font-size: 9px; color: #666; letter-spacing: 0.3px; }
+.erc-step.baseline .n { color: #cc4444; }
+.erc-step.s2 .n { color: #cc8833; }
+.erc-step.current .n { color: #44cc88; }
+.erc-step .delta { font-size: 9px; color: #44aa66; background: #0d2a1a; border: 1px solid #1a4a2a; border-radius: 3px; padding: 1px 4px; }
+.erc-arr { color: #333; font-size: 13px; }
+
+.erc-bar-track {
+  height: 6px;
+  background: #1a1a2e;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+.erc-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #44cc88, #338855);
+}
+.erc-bar-sub {
+  font-size: 9px;
+  color: #444;
+  text-align: right;
+}
+.erc-breakdown {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.erc-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+}
+.erc-row .cat { color: #668; flex: 1; font-family: monospace; font-size: 9.5px; }
+.erc-row .cnt { color: #bbb; font-weight: bold; min-width: 28px; text-align: right; }
+.erc-row .bar { flex: 2; height: 4px; background: #1a1a2e; border-radius: 2px; overflow: hidden; }
+.erc-row .bar-fill { height: 100%; border-radius: 2px; }
+.erc-row.warn .cat { color: #555; }
+.erc-row.warn .cnt { color: #666; }
+.erc-row.cleared .cat { color: #336633; }
+.erc-row.cleared .cnt { color: #44aa44; }
+
+.ic-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.ic-table td { padding: 3px 4px; font-size: 10px; border-bottom: 1px solid #1c1c30; }
+.ic-table td:first-child { color: #88ccee; font-family: monospace; font-weight: bold; width: 80px; }
+.ic-table td:last-child { color: #889; font-size: 9px; }
+.ic-table td:nth-child(2) { color: #aaa; }
+.ic-table .qty { color: #778; font-size: 9px; }
+
+.status-list { margin-top: 6px; }
+.status-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10.5px;
+  padding: 3px 0;
+  border-bottom: 1px solid #16162a;
+}
+.status-icon { font-size: 10px; min-width: 14px; }
+.status-name { color: #aab; flex: 1; }
+.status-name.pending { color: #777; }
+.status-badge {
+  font-size: 8px;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.3px;
+}
+.done-badge { background: #0d2a1a; color: #44aa66; border: 1px solid #1a5a2a; }
+.wip-badge { background: #2a1a08; color: #cc8833; border: 1px solid #5a3a10; }
+.todo-badge { background: #1a1a2e; color: #556; border: 1px solid #252545; }
+
+.spec-row { display: flex; gap: 6px; font-size: 10px; padding: 2px 0; }
+.spec-key { color: #556; min-width: 60px; }
+.spec-val { color: #99bbcc; }
+
+/* ── Clickable SVG blocks ── */
+.blk { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.blk:hover { filter: brightness(1.35) drop-shadow(0 0 6px rgba(255,255,255,0.22)); }
+.blk.sel  { filter: brightness(1.5)  drop-shadow(0 0 10px rgba(255,255,255,0.38)); }
+
+/* ── Mobile: bottom sheet overlay ── */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 90;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.overlay.show { opacity: 1; }
+
+.bottom-sheet {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #161626;
+  border-top: 1px solid #2a2a48;
+  border-radius: 18px 18px 0 0;
+  padding: 14px 18px 24px;
+  z-index: 100;
+  max-height: 72dvh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  -webkit-overflow-scrolling: touch;
+  color: #bbb;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.bottom-sheet.open { transform: translateY(0); }
+
+.sheet-handle {
+  width: 40px;
+  height: 4px;
+  background: #38385a;
+  border-radius: 2px;
+  margin: 0 auto 14px;
+}
+
+/* ── Scroll hint ── */
+.scroll-hint {
+  display: none;
+  color: #444;
+  font-size: 11px;
+  text-align: center;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  body { padding: 12px; }
+  .layout { flex-direction: column; gap: 0; }
+  .panel { display: none; }
+  .bottom-sheet { display: block; }
+  .overlay { display: block; }
+  .scroll-hint { display: block; }
+  .svg-wrap { max-width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .sw-btn, .info-btn { min-width: 140px; font-size: 12px; padding: 10px 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <button class="sw-btn sw1 is-loop" id="btn1" onclick="toggleSW(1)">
+    SW1 · Clipper: <span id="lbl1">LOOP</span>
+  </button>
+  <button class="sw-btn sw2 is-loop" id="btn2" onclick="toggleSW(2)">
+    SW2 · SSI2144: <span id="lbl2">LOOP</span>
+  </button>
+  <button class="info-btn" id="btnInfo" onclick="show('project')">
+    ℹ Project Info
+  </button>
+</div>
+<div class="combo" id="combo"></div>
+<div class="scroll-hint">← scroll to see full diagram →</div>
+
+<div class="layout">
+
+  <!-- SVG Diagram -->
+  <div class="svg-wrap">
+  <svg width="820" height="990" viewBox="0 0 820 990">
+  <defs>
+    <marker id="ma"   markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4488ff"/></marker>
+    <marker id="m-in" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ff7733"/></marker>
+    <marker id="m-cl" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ff3355"/></marker>
+    <marker id="m-ss" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#20ccaa"/></marker>
+    <marker id="m-sr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ccaa00"/></marker>
+    <marker id="m-hp" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ff8800"/></marker>
+    <marker id="m-lp" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ee6600"/></marker>
+    <marker id="m-ph" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#cc55ff"/></marker>
+  </defs>
+
+  <rect width="820" height="990" fill="#0e0e1a"/>
+  <text x="130" y="20" fill="#4488ff" font-size="10" font-weight="bold" text-anchor="middle" letter-spacing="1">MAIN PATH</text>
+  <text x="610" y="20" fill="#ff7733" font-size="10" font-weight="bold" text-anchor="middle" letter-spacing="1">FEEDBACK LOOP</text>
+  <line x1="370" y1="26" x2="370" y2="790" stroke="#1c1c30" stroke-width="1.5"/>
+
+  <!-- ═══ MAIN PATH ═══ -->
+  <g class="blk" id="b-inputs" onclick="show('inputs')">
+    <rect x="35" y="38" width="190" height="44" rx="10" fill="#1d5898"/>
+    <text x="130" y="57" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Stereo Inputs</text>
+    <text x="130" y="73" fill="#b8d8ff" font-size="10" text-anchor="middle">IN L / IN R</text>
+  </g>
+  <g class="blk" id="b-xfader" onclick="show('xfader')">
+    <rect x="35" y="110" width="190" height="48" rx="10" fill="#B84E0D"/>
+    <text x="130" y="130" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Feedback Crossfader</text>
+    <text x="130" y="146" fill="#ffd0a0" font-size="10" text-anchor="middle">POT + CV · U1+U2 OPA2134</text>
+  </g>
+  <g class="blk" id="b-CM" onclick="show('clipper')">
+    <rect x="35" y="178" width="190" height="44" rx="10" fill="#4A1010" stroke="#e05858" stroke-width="1.8" stroke-dasharray="5,3"/>
+    <text x="130" y="197" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Diode Clipper</text>
+    <text x="130" y="213" fill="#ffb0b0" font-size="10" text-anchor="middle">Drive VCA · POT + CV</text>
+    <rect x="176" y="174" width="50" height="15" rx="4" fill="#1E8840"/>
+    <text x="201" y="185" fill="#fff" font-size="8" font-weight="bold" text-anchor="middle">SW1=MAIN</text>
+  </g>
+  <g class="blk" id="b-SM" onclick="show('ssi2144')">
+    <rect x="35" y="242" width="190" height="50" rx="10" fill="#0E4030" stroke="#40C8A8" stroke-width="1.8" stroke-dasharray="5,3"/>
+    <text x="130" y="261" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">SSI2144 · 24dB LP</text>
+    <text x="130" y="277" fill="#90ede0" font-size="10" text-anchor="middle">Cutoff · Q · POT + CV</text>
+    <rect x="176" y="238" width="50" height="15" rx="4" fill="#6E24A0"/>
+    <text x="201" y="249" fill="#fff" font-size="8" font-weight="bold" text-anchor="middle">SW2=MAIN</text>
+  </g>
+  <g class="blk" id="b-output" onclick="show('output')">
+    <rect x="35" y="312" width="190" height="44" rx="10" fill="#1d5898"/>
+    <text x="130" y="331" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Stereo Output</text>
+    <text x="130" y="347" fill="#b8d8ff" font-size="10" text-anchor="middle">OUT L / OUT R</text>
+  </g>
+
+  <!-- Main path arrows -->
+  <line x1="130" y1="82"  x2="130" y2="108" stroke="#4488ff" stroke-width="1.8" marker-end="url(#ma)"/>
+  <line id="aXF" x1="130" y1="158" x2="130" y2="310" stroke="#4488ff" stroke-width="1.8" marker-end="url(#ma)"/>
+  <line id="aCM" x1="130" y1="222" x2="130" y2="240" stroke="#4488ff" stroke-width="1.8" marker-end="url(#ma)" display="none"/>
+  <line id="aSM" x1="130" y1="292" x2="130" y2="310" stroke="#4488ff" stroke-width="1.8" marker-end="url(#ma)" display="none"/>
+
+  <!-- Chunk 3 additions (left side, below Output) -->
+  <line x1="130" y1="356" x2="130" y2="393" stroke="#4499cc" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="130" y1="437" x2="130" y2="457" stroke="#ccaa00" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <g class="blk" id="b-stability" onclick="show('stability')">
+    <rect x="35" y="393" width="190" height="44" rx="10" fill="#0a1520" stroke="#4499cc" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <rect x="35" y="390" width="46" height="13" rx="3" fill="#1E5a2a"/>
+    <text x="58" y="400" fill="#88ffaa" font-size="7.5" font-weight="bold" text-anchor="middle">NEW · CH3</text>
+    <text x="130" y="412" fill="#fff" font-size="11" font-weight="bold" text-anchor="middle">DC HPF · CV Slew</text>
+    <text x="130" y="428" fill="#88ccee" font-size="10" text-anchor="middle">Crossfader inputs + CV rails</text>
+  </g>
+
+  <g class="blk" id="b-leds" onclick="show('leds')">
+    <rect x="35" y="457" width="190" height="44" rx="10" fill="#1a1400" stroke="#ccaa00" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <rect x="35" y="454" width="46" height="13" rx="3" fill="#1E5a2a"/>
+    <text x="58" y="464" fill="#88ffaa" font-size="7.5" font-weight="bold" text-anchor="middle">NEW · CH3</text>
+    <text x="130" y="476" fill="#fff" font-size="11" font-weight="bold" text-anchor="middle">LED Indicators</text>
+    <text x="130" y="492" fill="#ffdd60" font-size="10" text-anchor="middle">Clip activity · Return signal</text>
+  </g>
+
+  <!-- ═══ FEEDBACK LOOP ═══ -->
+  <g class="blk" id="b-CL" onclick="show('clipper')">
+    <rect x="505" y="388" width="210" height="44" rx="10" fill="#4A1010" stroke="#e05858" stroke-width="1.8" stroke-dasharray="5,3"/>
+    <text x="610" y="407" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Diode Clipper</text>
+    <text x="610" y="423" fill="#ffb0b0" font-size="10" text-anchor="middle">Drive VCA · POT + CV</text>
+    <rect x="663" y="384" width="50" height="15" rx="4" fill="#1E8840"/>
+    <text x="688" y="395" fill="#fff" font-size="8" font-weight="bold" text-anchor="middle">SW1=LOOP</text>
+  </g>
+  <g class="blk" id="b-SL" onclick="show('ssi2144')">
+    <rect x="505" y="452" width="210" height="50" rx="10" fill="#0E4030" stroke="#40C8A8" stroke-width="1.8" stroke-dasharray="5,3"/>
+    <text x="610" y="471" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">SSI2144 · 24dB LP</text>
+    <text x="610" y="487" fill="#90ede0" font-size="10" text-anchor="middle">Cutoff · Q · POT + CV</text>
+    <rect x="663" y="448" width="50" height="15" rx="4" fill="#6E24A0"/>
+    <text x="688" y="459" fill="#fff" font-size="8" font-weight="bold" text-anchor="middle">SW2=LOOP</text>
+  </g>
+  <g class="blk" id="b-sr" onclick="show('sendreturn')">
+    <rect x="505" y="522" width="210" height="52" rx="10" fill="#606000"/>
+    <text x="610" y="540" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Send / Return</text>
+    <text x="610" y="556" fill="#ffff90" font-size="10" text-anchor="middle">Level · POT + CV</text>
+    <text x="610" y="569" fill="#aaaa50" font-size="9" text-anchor="middle">← external FX →</text>
+  </g>
+  <g class="blk" id="b-hp" onclick="show('hp')">
+    <rect x="505" y="594" width="210" height="44" rx="10" fill="#553210"/>
+    <text x="610" y="613" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">HP Cut</text>
+    <text x="610" y="629" fill="#f0d8a0" font-size="10" text-anchor="middle">LM13700 · POT + CV</text>
+  </g>
+  <g class="blk" id="b-lp" onclick="show('lp')">
+    <rect x="505" y="658" width="210" height="44" rx="10" fill="#553210"/>
+    <text x="610" y="677" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">LP Cut</text>
+    <text x="610" y="693" fill="#f0d8a0" font-size="10" text-anchor="middle">LM13700 · POT + CV</text>
+  </g>
+  <g class="blk" id="b-phase" onclick="show('phase')">
+    <rect x="505" y="722" width="210" height="44" rx="10" fill="#52188C"/>
+    <text x="610" y="741" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Phase Inverter</text>
+    <text x="610" y="757" fill="#d8b0f8" font-size="10" text-anchor="middle">Attenuverter · POT + CV</text>
+  </g>
+
+  <!-- Loop arrows -->
+  <line id="aCL_sl" x1="610" y1="432" x2="610" y2="450" stroke="#ff3355" stroke-width="1.8" marker-end="url(#m-cl)"/>
+  <line id="aCL_sr" x1="610" y1="432" x2="610" y2="520" stroke="#ff3355" stroke-width="1.8" stroke-dasharray="5,3" marker-end="url(#m-cl)" display="none"/>
+  <line id="aSL_sr" x1="610" y1="502" x2="610" y2="520" stroke="#20ccaa" stroke-width="1.8" marker-end="url(#m-ss)"/>
+  <line x1="610" y1="574" x2="610" y2="592" stroke="#ccaa00" stroke-width="1.8" marker-end="url(#m-sr)"/>
+  <line x1="610" y1="638" x2="610" y2="656" stroke="#ff8800" stroke-width="1.8" marker-end="url(#m-hp)"/>
+  <line x1="610" y1="702" x2="610" y2="720" stroke="#ee6600" stroke-width="1.8" marker-end="url(#m-lp)"/>
+
+  <!-- Connectors: Output → Loop entry -->
+  <path id="cRC"  d="M225,334 H415 V410 H505" fill="none" stroke="#ff7733" stroke-width="1.8" marker-end="url(#m-in)"/>
+  <path id="cRS"  d="M225,334 H415 V477 H505" fill="none" stroke="#ff7733" stroke-width="1.8" marker-end="url(#m-in)" display="none"/>
+  <path id="cRSR" d="M225,334 H415 V548 H505" fill="none" stroke="#ff7733" stroke-width="1.8" marker-end="url(#m-in)" display="none"/>
+  <path         d="M505,744 H385 V134 H227"   fill="none" stroke="#cc55ff" stroke-width="1.8" marker-end="url(#m-ph)"/>
+  <text x="308" y="127" fill="#cc55ff" font-size="8" text-anchor="middle">feedback return</text>
+
+  <!-- ═══ SCHEMATIC LOG ═══ -->
+  <line x1="20" y1="815" x2="800" y2="815" stroke="#1c1c30" stroke-width="1"/>
+  <text x="410" y="832" fill="#252545" font-size="10" font-weight="bold" text-anchor="middle" letter-spacing="2.5">SCHEMATIC LOG</text>
+
+  <!-- Row 1: Chunks 1–3 -->
+  <g class="blk" id="b-ch1" onclick="show('chunk1')">
+    <rect x="20" y="840" width="240" height="40" rx="8" fill="#111122" stroke="#222238"/>
+    <text x="34" y="856" fill="#44445a" font-size="9" font-weight="bold">✓  CHUNK 1</text>
+    <text x="34" y="870" fill="#33334a" font-size="9">Cleanup &amp; structure</text>
+    <text x="252" y="864" fill="#2a5a3a" font-size="10" font-weight="bold" text-anchor="end">−84 ERC</text>
+  </g>
+  <g class="blk" id="b-ch2" onclick="show('chunk2')">
+    <rect x="285" y="840" width="240" height="40" rx="8" fill="#111122" stroke="#252540"/>
+    <text x="299" y="856" fill="#55556a" font-size="9" font-weight="bold">✓  CHUNK 2</text>
+    <text x="299" y="870" fill="#44445a" font-size="9">Feedback Crossfader U1+U2</text>
+    <text x="517" y="864" fill="#3a6a4a" font-size="10" font-weight="bold" text-anchor="end">ERC 716</text>
+  </g>
+  <g class="blk" id="b-ch3" onclick="show('chunk3')">
+    <rect x="550" y="840" width="245" height="40" rx="8" fill="#0d1a0d" stroke="#1E5a2a"/>
+    <text x="564" y="856" fill="#88bb88" font-size="9" font-weight="bold">✓  CHUNK 3  ·  LATEST</text>
+    <text x="564" y="870" fill="#557755" font-size="9">Clipper + SW1 + Stability</text>
+    <text x="787" y="864" fill="#4a9a4a" font-size="10" font-weight="bold" text-anchor="end">ERC 701</text>
+  </g>
+
+  <!-- Row 2: ERC Cleanup sessions -->
+  <line x1="20" y1="896" x2="800" y2="896" stroke="#14141f" stroke-width="1"/>
+  <text x="410" y="912" fill="#1c1c30" font-size="9" font-weight="bold" text-anchor="middle" letter-spacing="2">ERC CLEANUP</text>
+
+  <g class="blk" id="b-ses2" onclick="show('session2')">
+    <rect x="20" y="920" width="370" height="44" rx="8" fill="#0d1a10" stroke="#1a3a20"/>
+    <text x="34" y="936" fill="#446644" font-size="9" font-weight="bold">✓  SESSION 2</text>
+    <text x="34" y="950" fill="#335533" font-size="9">Wire cleanup · filter stubs · jack stubs · label fixes</text>
+    <text x="382" y="946" fill="#44aa66" font-size="11" font-weight="bold" text-anchor="end">701 → 589  −112</text>
+  </g>
+  <g class="blk" id="b-ses3" onclick="show('session3')">
+    <rect x="412" y="920" width="388" height="44" rx="8" fill="#0c1a10" stroke="#1E5a2a"/>
+    <text x="426" y="936" fill="#66aa66" font-size="9" font-weight="bold">✓  SESSION 3  ·  CURRENT</text>
+    <text x="426" y="950" fill="#446644" font-size="9">Orphan labels · all wire_dangling cleared · stubs</text>
+    <text x="792" y="946" fill="#44cc88" font-size="11" font-weight="bold" text-anchor="end">589 → 507  −82</text>
+  </g>
+
+  </svg>
+  </div>
+
+  <!-- Desktop panel -->
+  <div class="panel" id="panel-desktop">
+    <div class="panel-content">
+      <p class="hint">← click any block<br>to see description<br><br>or press<br><b style="color:#5a9abb">ℹ Project Info</b></p>
+    </div>
+  </div>
+
+</div><!-- .layout -->
+
+<!-- Mobile overlay -->
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+
+<!-- Mobile bottom sheet -->
+<div class="bottom-sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-content" id="sheet-content"></div>
+</div>
+
+<script>
+let s1 = true, s2 = true;
+let activeBlock = null;
+
+// ── Descriptions ──
+const desc = {
+
+  project: {
+    title: 'Feedback Loop Processor',
+    tag: 'Eurorack · Stereo · ±12V',
+    tagColor: '#2a4a6a',
+    body: `
+    <div class="spec-row"><span class="spec-key">Format</span><span class="spec-val">Eurorack 3U, stereo, ±12V / +5V</span></div>
+    <div class="spec-row"><span class="spec-key">PCB</span><span class="spec-val">2-layer · 1.6mm · SMD 0805 R/C</span></div>
+    <div class="spec-row"><span class="spec-key">Signal</span><span class="spec-val">±5V (10Vpp) · DC-coupled</span></div>
+    <div class="spec-row"><span class="spec-key">Power</span><span class="spec-val">±12V + AMS1117 → +3.3V</span></div>
+    <div class="spec-row"><span class="spec-key">File</span><span class="spec-val">feedback_loop.kicad_sch/pcb</span></div>
+
+    <h4>⚡ ERC Progress</h4>
+    <div class="erc-steps">
+      <div class="erc-step baseline"><span class="n">701</span><span class="l">baseline</span></div>
+      <span class="erc-arr">›</span>
+      <div class="erc-step s2"><span class="n">589</span><span class="delta">−112</span></div>
+      <span class="erc-arr">›</span>
+      <div class="erc-step current"><span class="n">507</span><span class="delta">−82</span></div>
+    </div>
+    <div class="erc-bar-track"><div class="erc-bar-fill" style="width:27.7%"></div></div>
+    <div class="erc-bar-sub">507 / 701 · cleared 27.7% · 194 violations fixed</div>
+
+    <div class="erc-breakdown">
+      <div class="erc-row"><span class="cat">pin_not_connected</span><span class="cnt">174</span><div class="bar"><div class="bar-fill" style="width:100%;background:#554"></div></div></div>
+      <div class="erc-row warn"><span class="cat">endpoint_off_grid</span><span class="cnt">265</span><div class="bar"><div class="bar-fill" style="width:100%;background:#333"></div></div></div>
+      <div class="erc-row"><span class="cat">unconnected_wire</span><span class="cnt">28</span><div class="bar"><div class="bar-fill" style="width:16%;background:#665533"></div></div></div>
+      <div class="erc-row"><span class="cat">pin_not_driven</span><span class="cnt">16</span><div class="bar"><div class="bar-fill" style="width:9%;background:#554455"></div></div></div>
+      <div class="erc-row"><span class="cat">label_dangling</span><span class="cnt">12</span><div class="bar"><div class="bar-fill" style="width:7%;background:#446655"></div></div></div>
+      <div class="erc-row warn"><span class="cat">pin_not_driven</span><span class="cnt">16</span><div class="bar"><div class="bar-fill" style="width:9%;background:#333"></div></div></div>
+      <div class="erc-row cleared"><span class="cat">wire_dangling ✓</span><span class="cnt">0</span><div class="bar"><div class="bar-fill" style="width:0%"></div></div></div>
+    </div>
+
+    <h4>Key ICs</h4>
+    <table class="ic-table">
+      <tr><td>OPA2134</td><td>×18</td><td>HQ audio opamp — buffers, summing, clipper</td></tr>
+      <tr><td>THAT2180</td><td>×8</td><td>VCA — crossfader, drive control</td></tr>
+      <tr><td>TL072</td><td>×7</td><td>GP opamp — utility, CV processing</td></tr>
+      <tr><td>LM13700</td><td>×3</td><td>OTA — HP/LP cut, CV control</td></tr>
+      <tr><td>SSI2144</td><td>×1</td><td>24dB/oct 4-pole LP filter (SSM2044 clone)</td></tr>
+    </table>
+
+    <h4>Circuit Status</h4>
+    <div class="status-list">
+      <div class="status-row"><span class="status-icon">✓</span><span class="status-name">Feedback Crossfader (U1+U2)</span><span class="status-badge done-badge">DONE</span></div>
+      <div class="status-row"><span class="status-icon">✓</span><span class="status-name">Diode Clipper (THAT2180 + J8 + U3)</span><span class="status-badge done-badge">DONE</span></div>
+      <div class="status-row"><span class="status-icon">✓</span><span class="status-name">SW1 / SW2 routing labels</span><span class="status-badge done-badge">DONE</span></div>
+      <div class="status-row"><span class="status-icon">✓</span><span class="status-name">Send/Return jacks J11–J14</span><span class="status-badge done-badge">DONE</span></div>
+      <div class="status-row"><span class="status-icon">⚡</span><span class="status-name pending">SSI2144 circuit wiring</span><span class="status-badge wip-badge">WIP</span></div>
+      <div class="status-row"><span class="status-icon">⚡</span><span class="status-name pending">HP/LP Cut (LM13700)</span><span class="status-badge wip-badge">WIP</span></div>
+      <div class="status-row"><span class="status-icon">⚡</span><span class="status-name pending">Phase Inverter wiring</span><span class="status-badge wip-badge">WIP</span></div>
+      <div class="status-row"><span class="status-icon">○</span><span class="status-name pending">I/O jacks J2–J5</span><span class="status-badge todo-badge">TODO</span></div>
+      <div class="status-row"><span class="status-icon">○</span><span class="status-name pending">Power header + decoupling</span><span class="status-badge todo-badge">TODO</span></div>
+    </div>
+
+    <h4>Signal Flow</h4>
+    <ul style="font-size:10px">
+      <li>IN L/R → input buffers</li>
+      <li>→ Feedback Crossfader (dry + FB blend)</li>
+      <li>→ SW1: Clipper (loop or main)</li>
+      <li>→ SW2: SSI2144 LP (loop or main)</li>
+      <li>→ OUT L/R  ←─ loop tap</li>
+      <li>Loop: Send/Return → HP Cut → LP Cut → Phase Inverter → xfader FB input</li>
+    </ul>
+    <div class="chip" style="margin-top:10px;font-size:10px">
+      <b>DRC constraints:</b> min track 0.2mm · via drill 0.6mm · clearance 0.2mm
+    </div>`
+  },
+
+  inputs: {
+    title: 'Stereo Inputs',
+    tag: 'ALWAYS IN MAIN PATH', tagColor: '#1d5898',
+    body: `Standard Eurorack audio input, ±5V (10Vpp).
+    <ul>
+      <li>Input impedance: ~100kΩ</li>
+      <li>Both channels independently buffered (OPA2134)</li>
+      <li>DC coupled — handles CV and audio</li>
+      <li>1kΩ series + 100pF RF filter on each input</li>
+      <li><b>IN R normalled to IN L</b> — mono source fills both channels automatically</li>
+    </ul>`
+  },
+
+  xfader: {
+    title: 'Feedback Crossfader',
+    tag: 'ALWAYS IN MAIN PATH', tagColor: '#B84E0D',
+    body: `The heart of the module. Blends dry input with returning feedback signal.
+    <ul>
+      <li><b>U1 OPA2134 (dual)</b> — inverting summing amplifier (L+R)</li>
+      <li><b>U2 OPA2134 (dual)</b> — polarity compensation buffer (non-inverting net result)</li>
+      <li>FEEDBACK POT: blend ratio (0 = dry → 100% = max feedback)</li>
+      <li>FEEDBACK_CV: voltage-controlled blend, 100kΩ + 10kΩ attenuator</li>
+      <li>Loop gain &gt; 1 → instability / self-oscillation</li>
+    </ul>
+    <div class="chip">
+      <b>DC HPF on inputs (Chunk 3):</b> 2.2–4.7µF film cap + 100k–220k to GND on both
+      DRY and FB return inputs. Cuts DC drift from feedback accumulation. fc ≈ 1Hz.
+    </div>
+    <div class="chip" style="margin-top:6px">
+      <b>CV Slew limiter (Chunk 3):</b> RC 100kΩ + 10nF on FEEDBACK_CV → τ ≈ 1ms.
+      Smooths abrupt CV steps, prevents clicks.
+    </div>
+    <div class="chip" style="margin-top:6px">⚠ Keep loop gain &lt; 1 at high freq to avoid runaway</div>`
+  },
+
+  clipper: {
+    title: 'Diode Clipper',
+    tag: 'SW1: LOOP ↔ MAIN', tagColor: '#1E8840',
+    body: `Voltage-controlled waveshaper. Full circuit: Drive VCA → Diode socket → Recovery amp.
+    <h4>Drive VCA — THAT2180 (U4 L / U7 R)</h4>
+    <ul>
+      <li>Blackmer exponential dB gain control (Ec+ ← DRIVE_CV)</li>
+      <li>Attenuates Eurorack ±5V to diode-appropriate level</li>
+      <li>IN ← CLIP_IN_L/R from SW1 COM port</li>
+      <li>OUT → J_DIODE pin 1/3 (CLIP_DA_L/R)</li>
+      <li>Ec− → GND (single-ended control)</li>
+    </ul>
+    <h4>J_DIODE DIP-8 Socket (J8) — swappable diodes</h4>
+    <ul>
+      <li>Machined gold-pin socket, panel cutout — swap live in performance</li>
+      <li>Pins 1/3: signal in (CLIP_DA_L/R), Pins 5/7: signal out (CLIP_DB_L/R)</li>
+      <li>Pins 2/4/6/8: GND (cathode/anode returns)</li>
+    </ul>
+    <ul style="margin-left:6px;margin-top:4px">
+      <li><b>1N4148 ×2</b> — hard clip ±0.7V, symmetric</li>
+      <li><b>1N4148 + 2× stack</b> — asymmetric, tube-like</li>
+      <li><b>LED red/green</b> — soft clip ±1.8V, lights up</li>
+      <li><b>Schottky BAT54</b> — fast, harsh</li>
+      <li><b>Ge 1N34A</b> — warm, low threshold, fuzzy</li>
+    </ul>
+    <h4>Recovery Amp — U3 OPA2134</h4>
+    <ul>
+      <li>+6dB gain: R_NFB = R_NFB2 = 100kΩ (gain = 1 + 100k/100k = 2×)</li>
+      <li>+IN ← CLIP_DB_L/R, OUT → CLIP_OUT_L/R</li>
+      <li>NFB resistors on-grid at x=297.180mm</li>
+    </ul>
+    <div class="chip"><b>Signal chain:</b> CLIP_IN → THAT2180 VCA → J_DIODE → OPA2134 → CLIP_OUT</div>
+    <div class="chip" style="margin-top:6px">
+      <b>LED activity (Chunk 3):</b> CLIP_OUT taps 10kΩ base R → NPN (2N3904) → LED_RED per channel.
+    </div>`
+  },
+
+  ssi2144: {
+    title: 'SSI2144 · 24dB LP Filter',
+    tag: 'SW2: LOOP ↔ MAIN', tagColor: '#6E24A0',
+    body: `SSM2044 clone by Sound Semiconductor. 4-pole ladder lowpass, 24dB/oct.
+    <ul>
+      <li>Self-oscillates at Q max → usable as sine oscillator</li>
+      <li>1V/oct expo converter on cutoff (discrete NPN + tempco + trim pot)</li>
+      <li>Cutoff range: ~20Hz – 20kHz</li>
+      <li>Q: from subtle resonance to full self-oscillation</li>
+      <li>Package: SSOP-16, ±12V compatible</li>
+    </ul>
+    <div class="chip">In LOOP: shapes harmonic content each cycle. Self-osc + feedback = melodic chaos.</div>`
+  },
+
+  output: {
+    title: 'Stereo Output',
+    tag: 'ALWAYS IN MAIN PATH', tagColor: '#1d5898',
+    body: `Buffered stereo outputs.
+    <ul>
+      <li>OPA2134 output buffers</li>
+      <li>±5V Eurorack standard (10Vpp)</li>
+      <li>Signal splits here: output jack + loop tap point</li>
+      <li>Loop tap feeds the feedback path (right side of diagram)</li>
+    </ul>`
+  },
+
+  sendreturn: {
+    title: 'Send / Return',
+    tag: 'ALWAYS IN FEEDBACK LOOP', tagColor: '#606000',
+    body: `Buffered FX insert for external effects.
+    <ul>
+      <li><b>Send:</b> buffer + attenuator → line level (−10 to −20dB)</li>
+      <li><b>Return:</b> gain stage back to Eurorack (+12–20dB)</li>
+      <li>PJ-398SM switching jacks — normalled through when empty</li>
+      <li>DC blocking caps on send/return (1–10µF)</li>
+      <li>Works with guitar pedals, rack gear, Eurorack FX</li>
+      <li><b>SEND L → SEND R</b> normalled — mono insert from one jack</li>
+      <li><b>RETURN L → RETURN R</b> normalled — mono return feeds both channels</li>
+    </ul>
+    <div class="chip">Reverb/delay in loop → evolving infinite textures. HP+LP after return tames the tails.</div>`
+  },
+
+  hp: {
+    title: 'HP Cut',
+    tag: 'ALWAYS IN FEEDBACK LOOP', tagColor: '#553210',
+    body: `1-pole highpass, LM13700 OTA. Removes bass buildup.
+    <ul>
+      <li>Prevents DC drift and low-freq locking in loop</li>
+      <li>Useful range: 20Hz – 500Hz</li>
+      <li>Expo converter (NPN + tempco) for musically even sweep</li>
+      <li>Placed after S/R Return — tames external FX low-end output</li>
+      <li>Cap: 10–47µF film/quality electrolytic</li>
+    </ul>`
+  },
+
+  lp: {
+    title: 'LP Cut',
+    tag: 'ALWAYS IN FEEDBACK LOOP', tagColor: '#553210',
+    body: `1-pole lowpass, LM13700 OTA. Tames HF runaway.
+    <ul>
+      <li>Prevents ultrasonic oscillation in the loop</li>
+      <li>Tames bright reverb/delay tails</li>
+      <li>Useful range: 2kHz – 20kHz</li>
+      <li>Expo converter (NPN + tempco) for musically even sweep</li>
+    </ul>
+    <div class="chip">HP + LP = adjustable bandwidth window for the loop. Narrow band → tonal, stable feedback.</div>`
+  },
+
+  phase: {
+    title: 'Phase Inverter',
+    tag: 'LAST IN FEEDBACK LOOP', tagColor: '#52188C',
+    body: `Attenuverter — controls polarity and level of the feedback return.
+    <ul>
+      <li>One knob: −100% (invert) → 0 (mute) → +100% (unity)</li>
+      <li>Dual-gang pot for stereo (L+R linked)</li>
+      <li>CV input: modulate phase in real-time</li>
+      <li><b>+100%</b> — positive feedback, reinforcing</li>
+      <li><b>−100%</b> — negative feedback, stabilizing</li>
+      <li><b>0</b> — breaks the loop</li>
+    </ul>
+    <div class="chip">
+      <b>CV Slew limiter (Chunk 3):</b> RC 100kΩ + 10nF on PHASE_CV → τ ≈ 1ms.
+      LFO modulation of Phase CV → breathing, evolving feedback character.
+    </div>`
+  },
+
+  stability: {
+    title: 'DC HPF · CV Slew Limiters',
+    tag: 'CHUNK 3 — STABILITY IMPROVEMENTS', tagColor: '#4499cc',
+    body: `Two classes of stability improvements added in Chunk 3.
+    <h4>DC Blocking HPF on Crossfader inputs</h4>
+    <ul>
+      <li>Added to both Crossfader summing inputs: DRY signal and FB return</li>
+      <li>2.2–4.7µF film cap in series → 100k–220kΩ to GND</li>
+      <li>Cuts DC offset and sub-Hz buildup from accumulated feedback</li>
+      <li>Net labels: <code>DRY_AC_L/R</code> and <code>FB_AC_L/R</code></li>
+      <li>fc ≈ 1Hz — audio passes cleanly, DC blocked</li>
+    </ul>
+    <h4>CV Slew Limiters</h4>
+    <ul>
+      <li>On <code>FEEDBACK_CV</code> and <code>PHASE_CV</code> input rails</li>
+      <li>RC: 100kΩ + 10nF → τ ≈ 1ms slew rate</li>
+      <li>Smooths abrupt CV jumps → prevents pops and clicks</li>
+      <li>Optional unity buffer using free OPA2134 half-sections</li>
+    </ul>
+    <div class="chip">These fixes don't change the sound — they prevent instability artefacts from accumulating over long feedback sessions.</div>`
+  },
+
+  leds: {
+    title: 'LED Indicators',
+    tag: 'CHUNK 3 — NEW', tagColor: '#ccaa00',
+    body: `Two indicator circuits for visual feedback during performance.
+    <h4>Clipper Activity LED (per channel)</h4>
+    <ul>
+      <li>Taps <code>CLIP_OUT_L/R</code> after U3 recovery amp</li>
+      <li>10kΩ base resistor → Q_NPN (2N3904) → LED_RED</li>
+      <li><code>R_LED_DRV_L/R</code> at x=645.160mm (on-grid)</li>
+      <li>Lights when clipper VCA has gain and diodes are shaping signal</li>
+    </ul>
+    <h4>Return Signal LED (bicolor)</h4>
+    <ul>
+      <li>Taps <code>RETURN_L/R</code> after the S/R Return jack</li>
+      <li>Green = signal present, Red = clip level exceeded</li>
+      <li><code>LED_RET_KA_L/R</code> nets connected to return path</li>
+    </ul>
+    <div class="chip">Visual cues for live performance: know when your diodes are working and when FX return is active — especially useful in dark stage conditions.</div>`
+  },
+
+  chunk1: {
+    title: 'Chunk 1 — Cleanup & Structure',
+    tag: 'COMPLETED · −84 ERC violations', tagColor: '#2a6a4a',
+    body: `Initial schematic cleanup before adding new circuits.
+    <ul>
+      <li>Removed orphaned/stale symbols from earlier drafts</li>
+      <li>Fixed unit/pin assignment issues on multi-unit OPA2134 blocks</li>
+      <li>Organised schematic into logical rows: Main Path / Feedback Loop / Control</li>
+      <li>Established net naming convention: <code>_L</code> / <code>_R</code> suffix per channel</li>
+      <li>Power decoupling structure: 100nF + 10µF per rail per IC</li>
+      <li>Ferrite beads on ±12V at power header, star ground plan</li>
+    </ul>
+    <div class="chip">After Chunk 1: clean foundation — ERC violations reduced by 84. All remaining violations are "unconnected signal" types from incomplete schematic blocks.</div>`
+  },
+
+  chunk2: {
+    title: 'Chunk 2 — Feedback Crossfader',
+    tag: 'COMPLETED · ERC 716', tagColor: '#B84E0D',
+    body: `Full stereo Feedback Crossfader wired: U1 + U2 OPA2134.
+    <h4>U1 OPA2134 — Inverting Summing Amplifier</h4>
+    <ul>
+      <li>One dual OPA2134 covers both L and R channels (unit 1 = L, unit 2 = R)</li>
+      <li>Sums: DRY input + scaled FEEDBACK return signal</li>
+      <li>FEEDBACK POT wired as gain-setting R in summing stage</li>
+      <li>FEEDBACK_CV: 100kΩ + 10kΩ attenuator before summing node</li>
+    </ul>
+    <h4>U2 OPA2134 — Polarity Compensation Buffer</h4>
+    <ul>
+      <li>Inverting unity-gain buffer (−1×)</li>
+      <li>Restores correct polarity: Phase Inverter +100% = positive feedback</li>
+      <li>Without this buffer, Phase +100% would invert → confusing behaviour</li>
+    </ul>
+    <div class="chip">Inverting summer → compensation buffer is the standard "non-inverting sum" topology. Net result: transparent blend at low feedback, smooth runaway at high feedback.</div>`
+  },
+
+  chunk3: {
+    title: 'Chunk 3 — Diode Clipper + SW1 + Stability',
+    tag: 'COMPLETED · ERC 701', tagColor: '#1E8840',
+    body: `Drive VCA, diode socket, recovery amp, SW1 routing + three stability improvements.
+    <h4>Drive VCA — THAT2180 (U4 L / U7 R)</h4>
+    <ul>
+      <li>Exponential dB gain control (Ec+ ← DRIVE_CV)</li>
+      <li>Attenuates ±5V to diode-appropriate level for controlled clipping</li>
+      <li>IN ← <code>CLIP_IN_L/R</code> from SW1 COM port</li>
+      <li>OUT → <code>CLIP_DA_L/R</code> (J_DIODE pin 1/3)</li>
+    </ul>
+    <h4>J_DIODE DIP-8 Socket (J8)</h4>
+    <ul>
+      <li>Conn_01x08 at x=314.960mm (on-grid, pins at x=309.880)</li>
+      <li>Pin 1/3: signal in (CLIP_DA_L/R from VCA)</li>
+      <li>Pin 5/7: signal out (CLIP_DB_L/R to recovery amp)</li>
+      <li>Pin 2/4/6/8: GND (cathode/anode returns, anti-parallel config)</li>
+    </ul>
+    <h4>Recovery Amp — U3 OPA2134</h4>
+    <ul>
+      <li>+6dB gain: R_NFB = R_NFB2 = 100kΩ → gain = 1+100k/100k = 2×</li>
+      <li>OUT → <code>CLIP_OUT_L/R</code></li>
+    </ul>
+    <h4>Stability Improvements</h4>
+    <ul>
+      <li>DC HPF on Crossfader inputs (2.2µF + 100k, fc≈1Hz)</li>
+      <li>CV slew RC on FEEDBACK_CV and PHASE_CV (100kΩ + 10nF, τ≈1ms)</li>
+      <li>LED drivers: 10kΩ base R + NPN + LED_RED per channel</li>
+    </ul>
+    <div class="chip"><b>ERC result: 701.</b> Starting point for ERC cleanup sessions.</div>`
+  },
+
+  session2: {
+    title: 'Session 2 — ERC Cleanup',
+    tag: 'ERC 701 → 589  · −112 violations', tagColor: '#2a6a4a',
+    body: `First major ERC cleanup pass. Focused on wire and label hygiene.
+    <h4>What was fixed</h4>
+    <ul>
+      <li>Deleted 26 dangling wires in filter section (x=379–415) — no LM13700 ICs placed yet</li>
+      <li>Deleted 4 orphan wires in RETURN_L send/return area</li>
+      <li>Deleted 8 clipper area stub wires (ISET bypass stubs, CLIP_DA stubs)</li>
+      <li>Deleted 4 feedback amp dangling stubs (x=229.845, x=204.822)</li>
+      <li>Added wire stubs at J11–J14 T-pins for SEND/RETURN labels</li>
+    </ul>
+    <h4>Breakdown improvement</h4>
+    <ul>
+      <li>wire_dangling: 38 → 15 (−23)</li>
+      <li>unconnected_wire_endpoint: 116 → 64 (−52)</li>
+      <li>endpoint_off_grid: 325 → 289 (−36)</li>
+      <li>label_dangling: 34 → 31 (−3)</li>
+    </ul>
+    <div class="chip">Backup: <b>feedback_loop.kicad_sch.bak_session2</b></div>`
+  },
+
+  session3: {
+    title: 'Session 3 — ERC Cleanup',
+    tag: 'ERC 589 → 507  · −82 violations  ·  CURRENT', tagColor: '#44aa66',
+    body: `Second ERC cleanup pass. Cleared all wire_dangling. Focused on label hygiene.
+    <h4>What was fixed</h4>
+    <ul>
+      <li>Deleted 22 orphan/single-instance labels from filter section (x=374–703) — filter ICs not placed, wires already deleted in S2</li>
+      <li>Deleted orphaned RETURN_L at (319.31,129.37) and RETURN_R at (319.31,149.69) — their wire networks were removed in S2</li>
+      <li>Deleted all wire_dangling wires in U1/U2 feedback amp area (8 wires) and SSI2144 area (4 wires)</li>
+      <li>Deleted 4 jack stub wires at J11–J14 — stubs had free ends causing unconnected_wire_endpoint violations; labels connect directly to jack pins</li>
+      <li>Restored CLIP_DA_L/R labels at J8 Pins 1/3 — they connect J8 connector to CLIP_DA signal</li>
+      <li>Deleted orphaned RETURN_R wire network at y=147.15 / 149.69</li>
+      <li>Deleted 4 decoupling cap bypass stubs (198.399 area)</li>
+    </ul>
+    <h4>Breakdown after S3</h4>
+    <ul>
+      <li>wire_dangling: 15 → <b>0 ✓ CLEARED</b></li>
+      <li>label_dangling: 31 → 12 (−19)</li>
+      <li>unconnected_wire_endpoint: 64 → 28 (−36)</li>
+      <li>endpoint_off_grid: 289 → 265 (−24)</li>
+    </ul>
+    <h4>Remaining 12 dangling labels</h4>
+    <ul style="font-size:10px">
+      <li>SSI_INN_L/R, Q_CV — SSI2144 inputs (circuit section incomplete)</li>
+      <li>DRIVE_CV_L/R — THAT2180 EC+ (CV routing incomplete)</li>
+      <li>SUM_OUT_L — U10 output (needs matching label at destination)</li>
+      <li>SEND_L/R, RETURN_L/R — jack T-pins (single-instance)</li>
+      <li>CLIP_DA_L/R at J8 — single-instance (source label needed)</li>
+    </ul>
+    <div class="chip"><b>Next:</b> connect remaining circuit sections — HP/LP (LM13700), Phase Inverter, I/O jacks, SSI2144. ERC target: &lt;400 violations.</div>
+    <div class="chip" style="margin-top:6px">Backup: <b>feedback_loop.kicad_sch.bak_session3f</b></div>`
+  },
+};
+
+const combos = {
+  'LL': '<b>Both in LOOP</b> — SSI2144 + Clipper shape feedback each cycle. Max chaos.',
+  'MM': '<b>Both in MAIN</b> — Standalone FX. Clean feedback: only S/R + HP/LP + Phase.',
+  'ML': '<b>SPLIT</b> — Clipper colors input. SSI2144 shapes loop resonance.',
+  'LM': '<b>REVERSED SPLIT</b> — Drive builds in loop. SSI2144 colors final output.',
+};
+
+// ── Helpers ──
+function $  (id) { return document.getElementById(id); }
+function att(id, k, v) { $(id).setAttribute(k, v); }
+function showEl(id) { att(id, 'display', ''); }
+function hideEl(id) { att(id, 'display', 'none'); }
+function opac(id, v) { att(id, 'opacity', v); }
+
+function isMobile() { return window.innerWidth < 900; }
+
+// ── Render description HTML ──
+function renderDesc(key) {
+  const d = desc[key];
+  if (!d) return '';
+  return `
+    <h3>${d.title}</h3>
+    <span class="tag" style="background:${d.tagColor}22;color:${d.tagColor};border:1px solid ${d.tagColor}44">${d.tag}</span>
+    ${d.body}
+  `;
+}
+
+// ── Show description ──
+function show(key) {
+  if (activeBlock) document.getElementById('b-' + activeBlock)?.classList.remove('sel');
+
+  const svgId = {
+    inputs:    'inputs',
+    xfader:    'xfader',
+    output:    'output',
+    sendreturn:'sr',
+    hp:        'hp',
+    lp:        'lp',
+    phase:     'phase',
+    stability: 'stability',
+    leds:      'leds',
+    chunk1:    'ch1',
+    chunk2:    'ch2',
+    chunk3:    'ch3',
+    session2:  'ses2',
+    session3:  'ses3',
+    project:   null,
+    clipper:   s1 ? 'CL' : 'CM',
+    ssi2144:   s2 ? 'SL' : 'SM',
+  }[key];
+
+  if (svgId) {
+    document.getElementById('b-' + svgId)?.classList.add('sel');
+    activeBlock = svgId;
+  }
+
+  // Info button state
+  $('btnInfo').classList.toggle('active', key === 'project');
+
+  const html = renderDesc(key);
+
+  if (isMobile()) {
+    $('sheet-content').innerHTML = html;
+    $('sheet').classList.add('open');
+    $('overlay').classList.add('show');
+  } else {
+    $('panel-desktop').innerHTML = `<div class="panel-content">${html}</div>`;
+  }
+}
+
+function closeSheet() {
+  $('sheet').classList.remove('open');
+  $('overlay').classList.remove('show');
+  if (activeBlock) document.getElementById('b-' + activeBlock)?.classList.remove('sel');
+  activeBlock = null;
+  $('btnInfo').classList.remove('active');
+}
+
+// ── Switches ──
+function toggleSW(sw) {
+  if (sw === 1) s1 = !s1; else s2 = !s2;
+  update();
+}
+
+function update() {
+  opac('b-CM', s1 ? 0.2 : 1.0);
+  opac('b-CL', s1 ? 1.0 : 0.2);
+  opac('b-SM', s2 ? 0.2 : 1.0);
+  opac('b-SL', s2 ? 1.0 : 0.2);
+
+  // Main path arrows
+  if (!s1) {
+    att('aXF','y2', 176); showEl('aCM');
+    att('aCM','y2', s2 ? 240 : 310);
+    if (!s2) showEl('aSM'); else hideEl('aSM');
+  } else {
+    hideEl('aCM');
+    att('aXF','y2', s2 ? 240 : 310);
+    if (!s2) showEl('aSM'); else hideEl('aSM');
+  }
+
+  // Right connector
+  if (s1)      { showEl('cRC'); hideEl('cRS'); hideEl('cRSR'); }
+  else if (s2) { hideEl('cRC'); showEl('cRS'); hideEl('cRSR'); }
+  else         { hideEl('cRC'); hideEl('cRS'); showEl('cRSR'); }
+
+  // Loop arrows
+  if (s1 && s2)  { showEl('aCL_sl'); hideEl('aCL_sr'); showEl('aSL_sr'); }
+  else if (s1)   { hideEl('aCL_sl'); showEl('aCL_sr'); hideEl('aSL_sr'); }
+  else if (s2)   { hideEl('aCL_sl'); hideEl('aCL_sr'); showEl('aSL_sr'); }
+  else           { hideEl('aCL_sl'); hideEl('aCL_sr'); hideEl('aSL_sr'); }
+
+  $('lbl1').textContent = s1 ? 'LOOP' : 'MAIN';
+  $('lbl2').textContent = s2 ? 'LOOP' : 'MAIN';
+  $('btn1').className = 'sw-btn sw1 ' + (s1 ? 'is-loop' : 'is-main');
+  $('btn2').className = 'sw-btn sw2 ' + (s2 ? 'is-loop' : 'is-main');
+  $('combo').innerHTML = combos[(s1?'L':'M')+(s2?'L':'M')];
+
+  closeSheet();
+}
+
+update();
+</script>
+</body>
+</html>
