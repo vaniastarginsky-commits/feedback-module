@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feedback Loop — Eurorack Analog Processor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<template id="__bundler_thumbnail" data-bg-color="#0a0806">
+  <svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+    <rect width="400" height="600" fill="#0a0806"/>
+    <text x="200" y="260" font-family="serif" font-size="64" fill="#c9a227" text-anchor="middle">⊗</text>
+    <text x="200" y="340" font-family="serif" font-size="28" fill="#c9a227" text-anchor="middle" letter-spacing="8">FEEDBACK</text>
+    <text x="200" y="380" font-family="serif" font-size="18" fill="#7a6020" text-anchor="middle" letter-spacing="6">LOOP</text>
+  </svg>
+</template>
+
+<style>
+/* ══ CSS VARS ══ */
+:root {
+  --bg:       #0a0806;
+  --bg2:      #0f0d0a;
+  --bg3:      #141209;
+  --gold:     #c9a227;
+  --gold2:    #9a7520;
+  --gold3:    #4a3810;
+  --parchment:#e8dcc8;
+  --muted:    #8a7a60;
+  --dimmed:   #4a4030;
+  --red:      #c94040;
+  --teal:     #3abfa8;
+  --purple:   #9055cc;
+  --ff-display: 'Pirata One', 'Times New Roman', serif;
+  --ff-body:    'Cormorant Garamond', Georgia, serif;
+  --ff-mono:    'JetBrains Mono', 'Courier New', monospace;
+  --accent:   #c9a227;
+  --accent2:  #9a7520;
+  --border:   1px solid rgba(201,162,39,0.25);
+  --border2:  1px solid rgba(201,162,39,0.1);
+}
+
+/* LIGHT MODE */
+body.light {
+  --bg:      #f5f0e8;
+  --bg2:     #ede6d6;
+  --bg3:     #e2d8c4;
+  --parchment:#2a1e08;
+  --muted:   #6a5a3a;
+  --dimmed:  #c0b090;
+  --gold:    #7a5a10;
+  --gold2:   #5a4010;
+  --gold3:   #d0c090;
+  --border:  1px solid rgba(100,70,10,0.3);
+  --border2: 1px solid rgba(100,70,10,0.12);
+}
+
+/* COPPER ACCENT */
+body.accent-copper { --accent: #c87941; --accent2: #9a5a28; }
+body.accent-jade   { --accent: #3abfa8; --accent2: #1a8a78; }
+
+/* ══ RESET ══ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--parchment);
+  font-family: var(--ff-body);
+  font-size: 18px;
+  line-height: 1.7;
+  overflow-x: hidden;
+  transition: background 0.4s, color 0.4s;
+}
+
+/* ══ TYPOGRAPHY ══ */
+h1, h2, h3 { font-family: var(--ff-display); font-weight: 400; line-height: 1.1; }
+h1 { font-size: clamp(3.5rem, 8vw, 8rem); letter-spacing: 0.04em; }
+h2 { font-size: clamp(2rem, 4vw, 3.5rem); }
+h3 { font-size: clamp(1.4rem, 2.5vw, 2rem); }
+p  { text-wrap: pretty; }
+a  { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.mono { font-family: var(--ff-mono); font-size: 0.78em; }
+
+/* ══ LAYOUT ══ */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 2rem; }
+.section { padding: 6rem 0; }
+
+/* ornament line */
+.orn-line {
+  display: flex; align-items: center; gap: 1rem;
+  margin-bottom: 1rem; color: var(--accent);
+}
+.orn-line::before, .orn-line::after {
+  content: ''; flex: 1; height: 1px; background: var(--accent);
+  opacity: 0.3;
+}
+
+/* ══ NAV ══ */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1rem 2rem;
+  background: linear-gradient(to bottom, rgba(10,8,6,0.95), transparent);
+  backdrop-filter: blur(4px);
+}
+.nav-logo { font-family: var(--ff-display); font-size: 1.3rem; color: var(--accent); }
+.nav-links { display: flex; gap: 2rem; font-size: 0.85rem; font-family: var(--ff-mono); text-transform: uppercase; letter-spacing: 0.1em; }
+.nav-links a { color: var(--muted); transition: color 0.2s; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media(max-width:680px){ .nav-links { display:none; } }
+
+/* ══ HERO ══ */
+#hero {
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 4rem;
+  padding-top: 7rem;
+  padding-bottom: 4rem;
+  position: relative;
+  overflow: hidden;
+}
+#hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 80% at 80% 50%, rgba(201,162,39,0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 60% at 20% 80%, rgba(58,191,168,0.03) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.hero-text { z-index: 1; }
+.hero-eyebrow {
+  font-family: var(--ff-mono); font-size: 0.75rem;
+  text-transform: uppercase; letter-spacing: 0.2em;
+  color: var(--accent); margin-bottom: 0.75rem;
+}
+.hero-title { margin-bottom: 0.5rem; color: var(--accent); }
+.hero-subtitle {
+  font-family: var(--ff-display); font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+  color: var(--gold2); margin-bottom: 1.5rem; letter-spacing: 0.05em;
+}
+.hero-tagline {
+  font-size: 1.15rem; line-height: 1.6;
+  color: var(--muted); max-width: 480px;
+  margin-bottom: 2rem; font-style: italic;
+}
+.hero-ctas { display: flex; gap: 1rem; flex-wrap: wrap; }
+.btn-primary {
+  display: inline-block; padding: 0.85rem 2rem;
+  border: 1px solid var(--accent); color: var(--bg);
+  background: var(--accent); font-family: var(--ff-mono);
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em;
+  cursor: pointer; transition: all 0.2s; text-decoration: none;
+}
+.btn-primary:hover { background: transparent; color: var(--accent); text-decoration: none; }
+.btn-secondary {
+  display: inline-block; padding: 0.85rem 2rem;
+  border: 1px solid var(--accent2); color: var(--muted);
+  background: transparent; font-family: var(--ff-mono);
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em;
+  cursor: pointer; transition: all 0.2s; text-decoration: none;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+.hero-panel { display: flex; justify-content: center; align-items: center; z-index: 1; }
+
+@media(max-width:860px) {
+  #hero { grid-template-columns: 1fr; text-align: center; }
+  .hero-text { order: 2; }
+  .hero-panel { order: 1; }
+  .hero-ctas { justify-content: center; }
+  .hero-tagline { margin: 0 auto 2rem; }
+}
+
+/* ══ CONCEPT ══ */
+#concept {
+  border-top: var(--border);
+  border-bottom: var(--border);
+  background: var(--bg2);
+}
+.concept-inner {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 5rem; align-items: start;
+}
+.concept-copy h2 { color: var(--accent); margin-bottom: 1.5rem; }
+.concept-copy p { color: var(--muted); margin-bottom: 1rem; font-size: 1.05rem; }
+.concept-specs-mini { display: flex; flex-direction: column; gap: 0.75rem; }
+.spec-pill {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 0.6rem 1rem; border: var(--border2);
+  border-left: 2px solid var(--accent);
+  background: rgba(201,162,39,0.04);
+}
+.spec-pill .k { font-family: var(--ff-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.spec-pill .v { font-family: var(--ff-mono); font-size: 0.85rem; color: var(--accent); }
+
+@media(max-width:720px){ .concept-inner { grid-template-columns: 1fr; gap: 3rem; } }
+
+/* ══ SIGNAL FLOW ══ */
+#signal {
+  background: var(--bg);
+}
+#signal h2 { color: var(--accent); margin-bottom: 0.5rem; }
+#signal .lead { color: var(--muted); margin-bottom: 3rem; font-style: italic; }
+
+.flow-wrap { position: relative; }
+.flow-controls { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.flow-btn {
+  padding: 0.45rem 1.1rem; border: 1px solid var(--dimmed);
+  background: transparent; color: var(--muted); font-family: var(--ff-mono);
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
+  cursor: pointer; transition: all 0.18s;
+}
+.flow-btn:hover, .flow-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(201,162,39,0.06); }
+.flow-btn.sw1 { border-color: #2a5a2a; color: #5a9a5a; }
+.flow-btn.sw1.active { border-color: #44aa44; color: #88ee88; background: rgba(68,170,68,0.08); }
+.flow-btn.sw2 { border-color: #4a2a6a; color: #8a5ab8; }
+.flow-btn.sw2.active { border-color: #9966dd; color: #cc99ff; background: rgba(153,102,221,0.08); }
+
+.flow-desc {
+  margin-top: 1.5rem; padding: 1.2rem 1.5rem;
+  border: var(--border2); border-left: 2px solid var(--accent);
+  background: rgba(201,162,39,0.04);
+  font-size: 0.95rem; color: var(--muted);
+  min-height: 80px;
+}
+.flow-desc h4 { color: var(--accent); font-family: var(--ff-mono); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+
+/* Flow diagram blocks */
+.flow-blk { cursor: pointer; transition: filter 0.15s; }
+.flow-blk:hover rect { filter: brightness(1.4); }
+.flow-blk:hover { filter: drop-shadow(0 0 6px rgba(201,162,39,0.3)); }
+
+/* ══ FEATURES ══ */
+#features { background: var(--bg2); }
+#features h2 { color: var(--accent); margin-bottom: 3rem; }
+.features-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 1.5px; background: var(--gold3);
+}
+.feat-card {
+  background: var(--bg2); padding: 2.5rem;
+  cursor: pointer; transition: background 0.2s;
+  border: var(--border2);
+}
+.feat-card:hover { background: var(--bg3); }
+.feat-card.active { background: var(--bg3); }
+.feat-icon { font-size: 2rem; margin-bottom: 1rem; }
+.feat-card h3 { color: var(--accent); margin-bottom: 0.75rem; }
+.feat-card .feat-tag {
+  display: inline-block; font-family: var(--ff-mono); font-size: 0.65rem;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  padding: 0.2rem 0.6rem; border: 1px solid var(--dimmed);
+  color: var(--dimmed); margin-bottom: 0.75rem;
+}
+.feat-card p { color: var(--muted); font-size: 0.95rem; line-height: 1.65; }
+.feat-detail {
+  grid-column: 1 / -1; padding: 2rem 2.5rem;
+  background: rgba(201,162,39,0.04); border: var(--border);
+  display: none;
+}
+.feat-detail.show { display: block; }
+.feat-detail h4 { color: var(--accent); font-family: var(--ff-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 1rem; }
+.feat-detail-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+.feat-spec { font-size: 0.88rem; }
+.feat-spec .label { color: var(--dimmed); font-family: var(--ff-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+.feat-spec .value { color: var(--parchment); }
+
+@media(max-width:680px){ .features-grid { grid-template-columns: 1fr; } .feat-detail-grid { grid-template-columns: 1fr; } }
+
+/* ══ SPECS ══ */
+#specs { background: var(--bg); }
+#specs h2 { color: var(--accent); margin-bottom: 3rem; }
+.specs-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; }
+.spec-table { width: 100%; border-collapse: collapse; }
+.spec-table td { padding: 0.6rem 0; border-bottom: var(--border2); font-size: 0.95rem; vertical-align: top; }
+.spec-table td:first-child { color: var(--dimmed); font-family: var(--ff-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; padding-right: 2rem; white-space: nowrap; }
+.spec-table td:last-child { color: var(--parchment); }
+.spec-section-title { font-family: var(--ff-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); margin: 1.5rem 0 0.5rem; }
+.io-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 2rem; margin-top: 1rem; }
+.io-item { font-size: 0.85rem; display: flex; align-items: baseline; gap: 0.5rem; }
+.io-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+.io-item .name { color: var(--parchment); }
+.io-item .type { color: var(--dimmed); font-family: var(--ff-mono); font-size: 0.65rem; }
+
+@media(max-width:720px){ .specs-layout { grid-template-columns: 1fr; gap: 2rem; } }
+
+/* ══ USE CASES ══ */
+#usecases { background: var(--bg2); border-top: var(--border); }
+#usecases h2 { color: var(--accent); margin-bottom: 3rem; }
+.patches-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.patch-card {
+  padding: 2rem; border: var(--border2);
+  background: var(--bg); position: relative; overflow: hidden;
+  transition: border-color 0.2s;
+}
+.patch-card::before {
+  content: attr(data-num);
+  position: absolute; top: -0.5rem; right: 1rem;
+  font-family: var(--ff-display); font-size: 5rem;
+  color: var(--gold3); line-height: 1;
+  pointer-events: none;
+}
+.patch-card:hover { border-color: rgba(201,162,39,0.4); }
+.patch-card h3 { color: var(--accent); font-size: 1.3rem; margin-bottom: 0.75rem; }
+.patch-card p { color: var(--muted); font-size: 0.9rem; line-height: 1.65; }
+.patch-signal { margin-top: 1rem; font-family: var(--ff-mono); font-size: 0.65rem; color: var(--dimmed); }
+
+@media(max-width:720px){ .patches-grid { grid-template-columns: 1fr; } }
+
+/* ══ GALLERY ══ */
+#gallery { background: var(--bg); border-top: var(--border); }
+#gallery h2 { color: var(--accent); margin-bottom: 2rem; }
+.gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.gallery-thumb {
+  aspect-ratio: 4/3; background: var(--bg2);
+  border: var(--border2); display: flex; align-items: center;
+  justify-content: center; flex-direction: column; gap: 0.5rem;
+  color: var(--dimmed); font-family: var(--ff-mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--bg2) 0px, var(--bg2) 4px,
+    var(--bg3) 4px, var(--bg3) 8px
+  );
+}
+.gallery-thumb .ph-icon { font-size: 1.5rem; opacity: 0.4; }
+@media(max-width:680px){ .gallery-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ══ PREORDER ══ */
+#preorder {
+  background: var(--bg2); border-top: var(--border);
+  text-align: center;
+}
+#preorder h2 { color: var(--accent); margin-bottom: 1rem; }
+#preorder .lead { color: var(--muted); font-style: italic; max-width: 560px; margin: 0 auto 2.5rem; font-size: 1.1rem; }
+.preorder-form { display: flex; gap: 0.75rem; max-width: 480px; margin: 0 auto; flex-wrap: wrap; justify-content: center; }
+.preorder-form input[type="email"] {
+  flex: 1; min-width: 220px; padding: 0.85rem 1.2rem;
+  background: var(--bg); border: 1px solid var(--gold2);
+  color: var(--parchment); font-family: var(--ff-mono); font-size: 0.85rem;
+  outline: none; transition: border-color 0.2s;
+}
+.preorder-form input[type="email"]:focus { border-color: var(--accent); }
+.preorder-form input[type="email"]::placeholder { color: var(--dimmed); }
+.preorder-note { margin-top: 1rem; color: var(--dimmed); font-family: var(--ff-mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.preorder-status { margin-top: 3rem; display: flex; justify-content: center; gap: 3rem; flex-wrap: wrap; }
+.ps-item { text-align: center; }
+.ps-num { font-family: var(--ff-display); font-size: 3rem; color: var(--accent); line-height: 1; }
+.ps-label { font-family: var(--ff-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+
+/* ══ FOOTER ══ */
+footer {
+  padding: 3rem 2rem; border-top: var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 1rem;
+  font-family: var(--ff-mono); font-size: 0.7rem; color: var(--dimmed);
+}
+.footer-logo { font-family: var(--ff-display); font-size: 1.2rem; color: var(--gold2); }
+
+/* ══ DIVIDERS ══ */
+.section-divider {
+  width: 100%; height: 1px;
+  background: linear-gradient(to right, transparent, var(--accent), transparent);
+  opacity: 0.2; margin: 0;
+}
+
+/* ══ TWEAKS PANEL ══ */
+#tweaks-panel {
+  position: fixed; bottom: 2rem; right: 2rem; z-index: 200;
+  background: rgba(10,8,6,0.96); border: 1px solid var(--gold2);
+  padding: 1.5rem; min-width: 240px; max-width: 300px;
+  display: none; backdrop-filter: blur(8px);
+  font-family: var(--ff-mono); font-size: 0.75rem;
+}
+body.light #tweaks-panel { background: rgba(240,235,225,0.97); }
+#tweaks-panel.visible { display: block; }
+#tweaks-panel h5 {
+  font-family: var(--ff-display); font-size: 1.1rem;
+  color: var(--accent); margin-bottom: 1rem;
+  padding-bottom: 0.5rem; border-bottom: var(--border);
+  letter-spacing: 0.05em;
+}
+.tweak-row { margin-bottom: 1rem; }
+.tweak-row label { display: block; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.4rem; font-size: 0.65rem; }
+.tweak-opts { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.tweak-opt {
+  padding: 0.25rem 0.6rem; border: 1px solid var(--dimmed);
+  color: var(--muted); background: transparent; cursor: pointer;
+  font-family: var(--ff-mono); font-size: 0.65rem; transition: all 0.15s;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.tweak-opt:hover { border-color: var(--accent); color: var(--accent); }
+.tweak-opt.selected { border-color: var(--accent); color: var(--bg); background: var(--accent); }
+.tweak-input {
+  width: 100%; padding: 0.35rem 0.6rem;
+  background: var(--bg3); border: 1px solid var(--dimmed);
+  color: var(--parchment); font-family: var(--ff-mono); font-size: 0.72rem;
+  outline: none; transition: border-color 0.15s;
+}
+.tweak-input:focus { border-color: var(--accent); }
+
+/* ══ KNOB PANEL ══ */
+.knob-panel {
+  display: flex; flex-wrap: wrap; gap: 1rem 2rem;
+  justify-content: center; align-items: flex-start;
+  margin-top: 1.5rem; padding: 1.2rem 1.5rem;
+  background: rgba(0,0,0,0.3); border: var(--border2);
+}
+.knob-section { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.knob-section-label {
+  font-family: var(--ff-mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.18em;
+  color: var(--dimmed); margin-bottom: 6px;
+}
+.knob-group { display: flex; gap: 1.2rem; }
+.knob-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: ns-resize; user-select: none; touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.knob-item:hover .knob-label { color: var(--accent); }
+.knob-item.dragging .knob-label { color: var(--parchment); }
+.knob-label {
+  font-family: var(--ff-mono); font-size: 0.58rem; font-weight: bold;
+  color: var(--dimmed); letter-spacing: 0.05em; text-align: center;
+  transition: color 0.15s;
+}
+.knob-val {
+  font-family: var(--ff-mono); font-size: 0.6rem;
+  color: var(--dimmed); min-width: 24px; text-align: center;
+}
+.knob-item.dragging .knob-val { color: var(--accent); }
+
+/* ══ SIGNAL SECTION LAYOUT ══ */
+.signal-layout {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+.signal-diagram {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+.signal-module {
+  flex-shrink: 0;
+  width: 280px;
+  padding-top: 0;
+}
+@media(max-width:900px) {
+  .signal-layout { flex-direction: column; }
+  .signal-module { width: 100%; display: flex; flex-direction: column; align-items: center; }
+}
+
+/* panel knob hover */
+.panel-knob { transition: filter 0.15s; }
+.panel-knob:hover circle:first-child { filter: brightness(1.3); }
+.panel-knob.dragging circle:first-child { filter: brightness(1.5); }
+
+/* ══ VARIATION: TECHNICAL (B) ══ */
+body.var-technical {
+  --bg:  #060810;
+  --bg2: #080c14;
+  --bg3: #0c1018;
+  background-image: 
+    linear-gradient(rgba(201,162,39,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201,162,39,0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+body.var-technical h1, body.var-technical h2, body.var-technical h3 { letter-spacing: 0.06em; }
+body.var-technical .feat-card, body.var-technical .patch-card { border-color: rgba(201,162,39,0.15); }
+body.var-technical .hero-tagline { font-style: normal; font-family: var(--ff-mono); font-size: 0.85rem; letter-spacing: 0.03em; }
+body.var-technical #hero::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(58,80,180,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 90% 90%, rgba(201,162,39,0.04) 0%, transparent 50%);
+}
+
+/* ══ SCROLL FADE ══ */
+.fade-in { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.fade-in.visible { opacity: 1; transform: none; }
+
+</style>
+</head>
+<body class="var-atmospheric">
+
+<!-- ══ TWEAKS ══ -->
+<div id="tweaks-panel">
+  <h5>Tweaks</h5>
+  <div class="tweak-row">
+    <label>Variation</label>
+    <div class="tweak-opts">
+      <button class="tweak-opt selected" data-tweak="variation" data-val="atmospheric" onclick="setTweak('variation','atmospheric',this)">Atmospheric</button>
+      <button class="tweak-opt" data-tweak="variation" data-val="technical" onclick="setTweak('variation','technical',this)">Technical</button>
+    </div>
+  </div>
+  <div class="tweak-row">
+    <label>Accent Color</label>
+    <div class="tweak-opts">
+      <button class="tweak-opt selected" data-tweak="accent" data-val="gold" onclick="setTweak('accent','gold',this)">Gold</button>
+      <button class="tweak-opt" data-tweak="accent" data-val="copper" onclick="setTweak('accent','copper',this)">Copper</button>
+      <button class="tweak-opt" data-tweak="accent" data-val="jade" onclick="setTweak('accent','jade',this)">Jade</button>
+    </div>
+  </div>
+  <div class="tweak-row">
+    <label>Theme</label>
+    <div class="tweak-opts">
+      <button class="tweak-opt selected" data-tweak="theme" data-val="dark" onclick="setTweak('theme','dark',this)">Dark</button>
+      <button class="tweak-opt" data-tweak="theme" data-val="light" onclick="setTweak('theme','light',this)">Light</button>
+    </div>
+  </div>
+  <div class="tweak-row">
+    <label>Tagline (EN)</label>
+    <input class="tweak-input" id="tweak-tagline" type="text" value="Controlled chaos. Analog feedback processor for Eurorack." oninput="setTagline(this.value)">
+  </div>
+  <div class="tweak-row">
+    <label>Language</label>
+    <div class="tweak-opts">
+      <button class="tweak-opt selected" data-tweak="lang" data-val="en" onclick="setTweak('lang','en',this)">EN</button>
+      <button class="tweak-opt" data-tweak="lang" data-val="ru" onclick="setTweak('lang','ru',this)">RU</button>
+      <button class="tweak-opt" data-tweak="lang" data-val="both" onclick="setTweak('lang','both',this)">Both</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <div class="nav-logo">⊗ Feedback Loop</div>
+  <div class="nav-links">
+    <a href="#signal">Signal</a>
+    <a href="#features">Features</a>
+    <a href="#specs">Specs</a>
+    <a href="#preorder">Preorder</a>
+  </div>
+</nav>
+
+<!-- ══ HERO ══ -->
+<section id="hero">
+  <div class="container" style="display:contents">
+    <div class="hero-text container" style="padding-top:0;padding-bottom:0">
+      <div class="hero-eyebrow">Eurorack · 14 HP · Analog</div>
+      <h1 class="hero-title">Feed&shy;back<br>Loop</h1>
+      <div class="hero-subtitle">Diode Processor</div>
+      <p class="hero-tagline" id="hero-tagline-en">Controlled chaos. Analog feedback processor for Eurorack.</p>
+      <p class="hero-tagline" id="hero-tagline-ru" style="display:none;font-style:normal;font-family:var(--ff-mono);font-size:0.85rem">Управляемый хаос. Аналоговый процессор обратной связи.</p>
+      <div class="hero-ctas">
+        <a href="#preorder" class="btn-primary">Preorder →</a>
+        <a href="#signal" class="btn-secondary">Signal Flow</a>
+      </div>
+    </div>
+    <div class="hero-panel">
+      <!-- 14HP Panel SVG -->
+      <svg viewBox="0 0 220 400" width="220" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 8px 40px rgba(201,162,39,0.18)) drop-shadow(0 2px 8px rgba(0,0,0,0.8))">
+        <!-- Panel background -->
+        <rect width="220" height="400" rx="2" fill="#0c0a07"/>
+        <!-- Subtle texture -->
+        <rect width="220" height="400" rx="2" fill="url(#panelTex)" opacity="0.06"/>
+        <defs>
+          <pattern id="panelTex" width="4" height="4" patternUnits="userSpaceOnUse">
+            <rect width="4" height="4" fill="none"/>
+            <circle cx="2" cy="2" r="0.5" fill="#c9a227"/>
+          </pattern>
+          <!-- Knob gradient -->
+          <radialGradient id="kg" cx="38%" cy="32%">
+            <stop offset="0%" stop-color="#555"/>
+            <stop offset="100%" stop-color="#111"/>
+          </radialGradient>
+          <radialGradient id="kg2" cx="38%" cy="32%">
+            <stop offset="0%" stop-color="#444"/>
+            <stop offset="100%" stop-color="#0a0a0a"/>
+          </radialGradient>
+          <!-- Jack gradient -->
+          <radialGradient id="jg" cx="40%" cy="35%">
+            <stop offset="0%" stop-color="#2a2a2a"/>
+            <stop offset="100%" stop-color="#080808"/>
+          </radialGradient>
+        </defs>
+
+        <!-- Ornamental corners -->
+        <g stroke="#c9a227" stroke-width="0.8" fill="none" opacity="0.7">
+          <!-- TL -->
+          <path d="M6,6 L6,18 M6,6 L18,6"/>
+          <path d="M10,10 L10,16 M10,10 L16,10"/>
+          <!-- TR -->
+          <path d="M214,6 L214,18 M214,6 L202,6"/>
+          <path d="M210,10 L210,16 M210,10 L204,10"/>
+          <!-- BL -->
+          <path d="M6,394 L6,382 M6,394 L18,394"/>
+          <path d="M10,390 L10,384 M10,390 L16,390"/>
+          <!-- BR -->
+          <path d="M214,394 L214,382 M214,394 L202,394"/>
+          <path d="M210,390 L210,384 M210,390 L204,390"/>
+        </g>
+
+        <!-- Mounting holes -->
+        <circle cx="18" cy="8" r="3" fill="#0a0a0a" stroke="#3a3020" stroke-width="0.8"/>
+        <circle cx="202" cy="8" r="3" fill="#0a0a0a" stroke="#3a3020" stroke-width="0.8"/>
+        <circle cx="18" cy="392" r="3" fill="#0a0a0a" stroke="#3a3020" stroke-width="0.8"/>
+        <circle cx="202" cy="392" r="3" fill="#0a0a0a" stroke="#3a3020" stroke-width="0.8"/>
+
+        <!-- ── ROW 1 KNOBS (large) ── -->
+        <!-- Diode -->
+        <g transform="translate(30,42)">
+          <circle r="14" fill="url(#kg)" stroke="#c9a227" stroke-width="0.8"/>
+          <circle r="10" fill="none" stroke="#c9a22720" stroke-width="8"/>
+          <line x1="0" y1="-8" x2="0" y2="-13" stroke="#c9a227" stroke-width="1.5" stroke-linecap="round"/>
+          <text x="0" y="22" fill="#c9a22799" font-family="monospace" font-size="5.5" text-anchor="middle" letter-spacing="0.3">DIODE</text>
+        </g>
+        <!-- Feed D/W -->
+        <g transform="translate(83,42)">
+          <circle r="14" fill="url(#kg)" stroke="#c9a227" stroke-width="0.8"/>
+          <line x1="-5" y1="-7" x2="-7" y2="-12" stroke="#c9a227" stroke-width="1.5" stroke-linecap="round"/>
+          <text x="0" y="22" fill="#c9a22799" font-family="monospace" font-size="5" text-anchor="middle" letter-spacing="0.2">FEED D/W</text>
+        </g>
+        <!-- Aux D/W -->
+        <g transform="translate(137,42)">
+          <circle r="14" fill="url(#kg)" stroke="#c9a227" stroke-width="0.8"/>
+          <line x1="5" y1="-7" x2="7" y2="-12" stroke="#c9a227" stroke-width="1.5" stroke-linecap="round"/>
+          <text x="0" y="22" fill="#c9a22799" font-family="monospace" font-size="5" text-anchor="middle" letter-spacing="0.2">AUX D/W</text>
+        </g>
+        <!-- Phase -->
+        <g transform="translate(190,42)">
+          <circle r="14" fill="url(#kg)" stroke="#c9a227" stroke-width="0.8"/>
+          <line x1="0" y1="-8" x2="0" y2="-13" stroke="#c9a227" stroke-width="1.5" stroke-linecap="round"/>
+          <text x="0" y="22" fill="#c9a22799" font-family="monospace" font-size="5.5" text-anchor="middle" letter-spacing="0.3">PHASE</text>
+        </g>
+
+        <!-- ── ROW 2 KNOBS ── -->
+        <!-- Q (smaller) -->
+        <g transform="translate(30,100)">
+          <circle r="11" fill="url(#kg2)" stroke="#c9a22788" stroke-width="0.7"/>
+          <line x1="-4" y1="-6" x2="-6" y2="-9" stroke="#c9a227" stroke-width="1.2" stroke-linecap="round"/>
+          <text x="0" y="19" fill="#c9a22777" font-family="monospace" font-size="5.5" text-anchor="middle">Q</text>
+        </g>
+        <!-- Freq 1 -->
+        <g transform="translate(83,100)">
+          <circle r="13" fill="url(#kg)" stroke="#c9a227" stroke-width="0.8"/>
+          <line x1="-4" y1="-7" x2="-6" y2="-11" stroke="#c9a227" stroke-width="1.4" stroke-linecap="round"/>
+          <text x="0" y="20" fill="#c9a22799" font-family="monospace" font-size="5.5" text-anchor="middle" letter-spacing="0.2">FREQ 1</text>
+        </g>
+        <!-- Freq 2 -->
+        <g transform="translate(137,100)">
+          <circle r="13" fill="url(#kg)" stroke="#c9a227" stroke-width="0.8"/>
+          <line x1="4" y1="-7" x2="6" y2="-11" stroke="#c9a227" stroke-width="1.4" stroke-linecap="round"/>
+          <text x="0" y="20" fill="#c9a22799" font-family="monospace" font-size="5.5" text-anchor="middle" letter-spacing="0.2">FREQ 2</text>
+        </g>
+        <!-- V/Oct -->
+        <g transform="translate(190,100)">
+          <circle r="11" fill="url(#kg2)" stroke="#c9a22788" stroke-width="0.7"/>
+          <line x1="4" y1="-6" x2="6" y2="-9" stroke="#c9a227" stroke-width="1.2" stroke-linecap="round"/>
+          <text x="0" y="19" fill="#c9a22777" font-family="monospace" font-size="4.5" text-anchor="middle" letter-spacing="0.2">V/OCT</text>
+        </g>
+
+        <!-- ── ROW 3: LP / DIODE badge / HP ── -->
+        <!-- LP -->
+        <g transform="translate(30,158)">
+          <circle r="11" fill="url(#kg2)" stroke="#c9a22788" stroke-width="0.7"/>
+          <line x1="-3" y1="-7" x2="-4" y2="-10" stroke="#c9a227" stroke-width="1.2" stroke-linecap="round"/>
+          <text x="0" y="19" fill="#c9a22777" font-family="monospace" font-size="5.5" text-anchor="middle">LP</text>
+        </g>
+        <!-- HP -->
+        <g transform="translate(190,158)">
+          <circle r="11" fill="url(#kg2)" stroke="#c9a22788" stroke-width="0.7"/>
+          <line x1="3" y1="-7" x2="4" y2="-10" stroke="#c9a227" stroke-width="1.2" stroke-linecap="round"/>
+          <text x="0" y="19" fill="#c9a22777" font-family="monospace" font-size="5.5" text-anchor="middle">HP</text>
+        </g>
+        <!-- Central DIODE badge -->
+        <g transform="translate(110,155)">
+          <!-- outer rect ornament -->
+          <rect x="-42" y="-30" width="84" height="52" rx="2" fill="#110e08" stroke="#c9a227" stroke-width="0.9"/>
+          <!-- decorative lines -->
+          <line x1="-42" y1="-15" x2="-32" y2="-15" stroke="#c9a22760" stroke-width="0.5"/>
+          <line x1="32" y1="-15" x2="42" y2="-15" stroke="#c9a22760" stroke-width="0.5"/>
+          <line x1="-42" y1="8" x2="-32" y2="8" stroke="#c9a22760" stroke-width="0.5"/>
+          <line x1="32" y1="8" x2="42" y2="8" stroke="#c9a22760" stroke-width="0.5"/>
+          <!-- corner accents -->
+          <circle cx="-42" cy="-30" r="1.5" fill="#c9a22760"/>
+          <circle cx="42" cy="-30" r="1.5" fill="#c9a22760"/>
+          <circle cx="-42" cy="22" r="1.5" fill="#c9a22760"/>
+          <circle cx="42" cy="22" r="1.5" fill="#c9a22760"/>
+          <!-- eye symbol -->
+          <ellipse cx="0" cy="-10" rx="10" ry="5.5" fill="none" stroke="#c9a22788" stroke-width="0.7"/>
+          <circle cx="0" cy="-10" r="2.5" fill="#c9a22788"/>
+          <!-- DIODE text -->
+          <text x="0" y="10" fill="#c9a227" font-family="'Pirata One',serif" font-size="13" text-anchor="middle" letter-spacing="1">Diode</text>
+        </g>
+
+        <!-- ── JACK ROWS ── -->
+        <!-- Separator line -->
+        <line x1="15" y1="192" x2="205" y2="192" stroke="#c9a22730" stroke-width="0.5"/>
+
+        <!-- Row 4: Diode CV, Freq, Aux, Phase (jacks) -->
+        <g>
+          <!-- jack macro: cx, cy, label -->
+          <!-- Diode -->
+          <g transform="translate(30,212)">
+            <circle r="8.5" fill="url(#jg)" stroke="#3a3020" stroke-width="1.2"/>
+            <circle r="4.5" fill="#111" stroke="#c9a22740" stroke-width="0.5"/>
+            <circle r="1.5" fill="#444"/>
+            <text x="0" y="18" fill="#c9a22766" font-family="monospace" font-size="5" text-anchor="middle">DIODE</text>
+          </g>
+          <!-- Freq -->
+          <g transform="translate(83,212)">
+            <circle r="8.5" fill="url(#jg)" stroke="#3a3020" stroke-width="1.2"/>
+            <circle r="4.5" fill="#111" stroke="#c9a22740" stroke-width="0.5"/>
+            <circle r="1.5" fill="#444"/>
+            <text x="0" y="18" fill="#c9a22766" font-family="monospace" font-size="5" text-anchor="middle">FREQ</text>
+          </g>
+          <!-- Aux -->
+          <g transform="translate(137,212)">
+            <circle r="8.5" fill="url(#jg)" stroke="#3a3020" stroke-width="1.2"/>
+            <circle r="4.5" fill="#111" stroke="#c9a22740" stroke-width="0.5"/>
+            <circle r="1.5" fill="#444"/>
+            <text x="0" y="18" fill="#c9a22766" font-family="monospace" font-size="5" text-anchor="middle">AUX</text>
+          </g>
+          <!-- Phase -->
+          <g transform="translate(190,212)">
+            <circle r="8.5" fill="url(#jg)" stroke="#3a3020" stroke-width="1.2"/>
+            <circle r="4.5" fill="#111" stroke="#c9a22740" stroke-width="0.5"/>
+            <circle r="1.5" fill="#444"/>
+            <text x="0" y="18" fill="#c9a22766" font-family="monospace" font-size="5" text-anchor="middle">PHASE</text>
+          </g>
+        </g>
+
+        <!-- Row 5: LP, Freq1, Freq2, V/Oct CV -->
+        <g>
+          <g transform="translate(30,256)">
+            <circle r="8.5" fill="url(#jg)" stroke="#3a3020" stroke-width="1.2"/>
+            <circle r="4.5" fill="#111" stroke="#c9a22740" stroke-width="0.5"/>
+            <circle r="1.5" fill="#444"/>
+            <text x="0" y="18" fill="#c9a22766" font-family="monospace" font-size="5" text-anchor="middle">LP</text>
+          </g>
+          <g transform="translate(83,256)">
+            <circle r="8.5" fill="url(#jg)" stroke="#3a3020" stroke-width="1.2"/>
+            <circle r="4.5" fill="#111" stroke="#c9a22740" stroke-width="0.5"/>
+            <circle r="1.5" fill="#444"/>
+            <text x="0" y="18" fill="#c9a22766" font-family="monospace" font-size="5" text-anchor="middle">FREQ 1</text>
+          </g>
+          <g transform="translate(137,256)">
+            <circle r="8.5" fill="url(#jg)" stroke="#3a3020" stroke-width="1.2"/>
+            <circle r="4.5" fill="#111" stroke="#c9a22740" stroke-width="0.5"/>
+            <circle r="1.5" fill="#444"/>
+            <text x="0" y="18" fill="#c9a22766" font-family="monospace" font-size="5" text-anchor="middle">FREQ 2</text>
+          </g>
+          <g transform="translate(190,256)">
+            <circle r="8.5" fill="url(#jg)" stroke="#3a3020" stroke-width="1.2"/>
+            <circle r="4.5" fill="#111" stroke="#c9a22740" stroke-width="0.5"/>
+            <circle r="1.5" fill="#444"/>
+            <text x="0" y="18" fill="#c9a22766" font-family="monospace" font-size="5" text-anchor="middle">V/OCT</text>
+          </g>
+        </g>
+
+        <!-- Separator -->
+        <line x1="15" y1="281" x2="205" y2="281" stroke="#c9a22730" stroke-width="0.5"/>
+
+        <!-- Row 6: In L, Send L, Send R, Out L -->
+        <g>
+          <g transform="translate(30,300)">
+            <circle r="9" fill="url(#jg)" stroke="#4a3820" stroke-width="1.5"/>
+            <circle r="5" fill="#111" stroke="#c9a22750" stroke-width="0.6"/>
+            <circle r="1.8" fill="#3a3020"/>
+            <text x="0" y="18" fill="#c9a22788" font-family="monospace" font-size="5" text-anchor="middle">IN L</text>
+          </g>
+          <g transform="translate(83,300)">
+            <circle r="9" fill="url(#jg)" stroke="#4a3820" stroke-width="1.5"/>
+            <circle r="5" fill="#111" stroke="#c9a22750" stroke-width="0.6"/>
+            <circle r="1.8" fill="#3a3020"/>
+            <text x="0" y="18" fill="#c9a22788" font-family="monospace" font-size="5" text-anchor="middle">SEND L</text>
+          </g>
+          <g transform="translate(137,300)">
+            <circle r="9" fill="url(#jg)" stroke="#4a3820" stroke-width="1.5"/>
+            <circle r="5" fill="#111" stroke="#c9a22750" stroke-width="0.6"/>
+            <circle r="1.8" fill="#3a3020"/>
+            <text x="0" y="18" fill="#c9a22788" font-family="monospace" font-size="5" text-anchor="middle">SEND R</text>
+          </g>
+          <g transform="translate(190,300)">
+            <circle r="9" fill="url(#jg)" stroke="#4a3820" stroke-width="1.5"/>
+            <circle r="5" fill="#111" stroke="#c9a22750" stroke-width="0.6"/>
+            <circle r="1.8" fill="#3a3020"/>
+            <text x="0" y="18" fill="#c9a22788" font-family="monospace" font-size="5" text-anchor="middle">OUT L</text>
+          </g>
+        </g>
+
+        <!-- Row 7: In R, Return L, Return R, Out R -->
+        <g>
+          <g transform="translate(30,344)">
+            <circle r="9" fill="url(#jg)" stroke="#4a3820" stroke-width="1.5"/>
+            <circle r="5" fill="#111" stroke="#c9a22750" stroke-width="0.6"/>
+            <circle r="1.8" fill="#3a3020"/>
+            <text x="0" y="18" fill="#c9a22788" font-family="monospace" font-size="5" text-anchor="middle">IN R</text>
+          </g>
+          <g transform="translate(83,344)">
+            <circle r="9" fill="url(#jg)" stroke="#4a3820" stroke-width="1.5"/>
+            <circle r="5" fill="#111" stroke="#c9a22750" stroke-width="0.6"/>
+            <circle r="1.8" fill="#3a3020"/>
+            <text x="0" y="18" fill="#c9a22788" font-family="monospace" font-size="5" text-anchor="middle">RETURN L</text>
+          </g>
+          <g transform="translate(137,344)">
+            <circle r="9" fill="url(#jg)" stroke="#4a3820" stroke-width="1.5"/>
+            <circle r="5" fill="#111" stroke="#c9a22750" stroke-width="0.6"/>
+            <circle r="1.8" fill="#3a3020"/>
+            <text x="0" y="18" fill="#c9a22788" font-family="monospace" font-size="5" text-anchor="middle">RETURN R</text>
+          </g>
+          <g transform="translate(190,344)">
+            <circle r="9" fill="url(#jg)" stroke="#4a3820" stroke-width="1.5"/>
+            <circle r="5" fill="#111" stroke="#c9a22750" stroke-width="0.6"/>
+            <circle r="1.8" fill="#3a3020"/>
+            <text x="0" y="18" fill="#c9a22788" font-family="monospace" font-size="5" text-anchor="middle">OUT R</text>
+          </g>
+        </g>
+
+        <!-- Bottom text -->
+        <line x1="15" y1="373" x2="205" y2="373" stroke="#c9a22728" stroke-width="0.5"/>
+        <text x="110" y="385" fill="#c9a22799" font-family="'Pirata One',serif" font-size="9" text-anchor="middle" letter-spacing="1.5">Feedback Loop</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ CONCEPT ══ -->
+<section id="concept" class="section">
+  <div class="container fade-in">
+    <div class="concept-inner">
+      <div class="concept-copy">
+        <div class="orn-line">
+          <span style="font-family:var(--ff-mono);font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase">The Concept</span>
+        </div>
+        <h2>A loop that feeds on itself</h2>
+        <p>Feedback Loop is a stereo analog effects processor built around a diode clipper, a 24dB/oct SSI2144 ladder filter, and a configurable feedback path. Insert anything into the loop — the module routes, shapes, and returns the signal with precision.</p>
+        <p>Two routing switches (SW1, SW2) determine whether the Clipper and Filter sit in the main signal path or inside the feedback loop — enabling dramatically different sonic characters from the same hardware.</p>
+        <p class="lang-ru" style="display:none;color:var(--muted);font-style:normal;font-family:var(--ff-mono);font-size:0.82rem">Feedback Loop — стерео аналоговый процессор. Диодный клиппер, фильтр SSI2144 24дБ/окт, конфигурируемая петля обратной связи.</p>
+      </div>
+      <div class="concept-specs-mini">
+        <div class="spec-pill"><span class="k">Format</span><span class="v">Eurorack 3U</span></div>
+        <div class="spec-pill"><span class="k">Width</span><span class="v">14 HP</span></div>
+        <div class="spec-pill"><span class="k">Power</span><span class="v">±12V, +5V</span></div>
+        <div class="spec-pill"><span class="k">Channels</span><span class="v">Stereo (L/R)</span></div>
+        <div class="spec-pill"><span class="k">Filter</span><span class="v">SSI2144 · 24dB LP</span></div>
+        <div class="spec-pill"><span class="k">VCA</span><span class="v">THAT2181 × 2</span></div>
+        <div class="spec-pill"><span class="k">Logic</span><span class="v">74HC74 T-FF</span></div>
+        <div class="spec-pill"><span class="k">Status</span><span class="v mono" style="color:#44cc88">ERC 0 — pre-PCB</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ SIGNAL FLOW ══ -->
+<section id="signal" class="section">
+  <div class="container">
+    <div class="orn-line fade-in">
+      <span style="font-family:var(--ff-mono);font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase">Signal Architecture</span>
+    </div>
+    <h2 class="fade-in">Signal Flow</h2>
+    <p class="lead fade-in">Click any block to explore. Toggle SW1 and SW2 to see alternate routing.</p>
+
+    <div class="flow-controls fade-in">
+      <button class="flow-btn sw1 active" id="btn-sw1" onclick="toggleSW(1)">SW1 · Clipper: <span id="sw1-lbl">LOOP</span></button>
+      <button class="flow-btn sw2 active" id="btn-sw2" onclick="toggleSW(2)">SW2 · Filter: <span id="sw2-lbl">LOOP</span></button>
+    </div>
+
+    <!-- Signal flow + module panel layout -->
+    <div class="signal-layout">
+
+      <!-- LEFT: Interactive diagram + desc -->
+      <div class="signal-diagram">
+        <svg id="flow-svg" viewBox="0 0 760 520" width="100%" style="overflow:visible;pointer-events:all">
+        <defs>
+          <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#c9a22799"/>
+          </marker>
+          <marker id="arr-fb" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#ff773399"/>
+          </marker>
+          <marker id="arr-ph" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#cc55ffbb"/>
+          </marker>
+          <marker id="arr-ph-neg" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#4488ffbb"/>
+          </marker>
+        </defs>
+
+        <!-- COLUMN LABELS -->
+        <text x="135" y="14" fill="#c9a22750" font-family="monospace" font-size="8" font-weight="bold" text-anchor="middle" letter-spacing="2">MAIN PATH</text>
+        <text x="535" y="14" fill="#ff773350" font-family="monospace" font-size="8" font-weight="bold" text-anchor="middle" letter-spacing="2">FEEDBACK LOOP</text>
+        <line x1="355" y1="5" x2="355" y2="475" stroke="#c9a22710" stroke-width="1" stroke-dasharray="3,5"/>
+
+        <!-- MAIN PATH (x=10-270) -->
+        <g onclick="showFlow('io')" class="flow-blk" style="cursor:pointer">
+          <rect x="10" y="22" width="250" height="24" rx="4" fill="#080806" stroke="#c9a22728" stroke-width="1"/>
+          <text x="65" y="36" fill="#c9a22760" font-family="monospace" font-size="8" font-weight="bold">IN L / IN R</text>
+          <text x="240" y="36" fill="#c9a22740" font-family="monospace" font-size="7" text-anchor="end">3.5mm jacks</text>
+        </g>
+        <g onclick="showFlow('in-buf')" class="flow-blk" style="cursor:pointer">
+          <rect x="10" y="62" width="250" height="36" rx="5" fill="#0c1520" stroke="#c9a22745" stroke-width="1.2" stroke-dasharray="4,3"/>
+          <text x="135" y="79" fill="#fff" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">Input Buffer</text>
+          <text x="135" y="91" fill="#c9a22780" font-family="monospace" font-size="8" text-anchor="middle">LM4562 × 2 · DRY_AC tap</text>
+        </g>
+        <g onclick="showFlow('xfader')" class="flow-blk" id="fblk-main-xf" style="cursor:pointer">
+          <rect x="10" y="122" width="250" height="38" rx="5" fill="#1a1408" stroke="#c9a22768" stroke-width="1.5"/>
+          <text x="135" y="139" fill="#fff" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">V2164 Feedback Xfader</text>
+          <text x="135" y="152" fill="#c9a22790" font-family="monospace" font-size="8" text-anchor="middle">DRY + WET (loop) · pot + CV</text>
+          <text x="262" y="136" fill="#cc55ff55" font-family="monospace" font-size="6.5">← WET</text>
+        </g>
+        <g onclick="showFlow('clipper')" class="flow-blk" id="fblk-main-clip" style="cursor:pointer">
+          <rect x="10" y="200" width="250" height="36" rx="5" fill="#220808" stroke="#cc404075" stroke-width="1.4" stroke-dasharray="5,3"/>
+          <text x="135" y="216" fill="#fff" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">Diode Clipper</text>
+          <text x="135" y="228" fill="#ff888870" font-family="monospace" font-size="8" text-anchor="middle">DIP-8 socket · passive shunt</text>
+          <rect x="212" y="196" width="50" height="13" rx="3" fill="#1E5a2a"/>
+          <text x="237" y="206" fill="#88ee88" font-family="monospace" font-size="7" font-weight="bold" text-anchor="middle">SW1=MAIN</text>
+        </g>
+        <g onclick="showFlow('ssi2144')" class="flow-blk" id="fblk-main-ssi" style="cursor:pointer">
+          <rect x="10" y="282" width="250" height="38" rx="5" fill="#06201a" stroke="#3abfa875" stroke-width="1.4" stroke-dasharray="5,3"/>
+          <text x="135" y="299" fill="#fff" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">SSI2144 · 24dB LP</text>
+          <text x="135" y="312" fill="#3abfa880" font-family="monospace" font-size="8" text-anchor="middle">Cutoff · Q · V/Oct</text>
+          <rect x="212" y="278" width="50" height="13" rx="3" fill="#38107a"/>
+          <text x="237" y="288" fill="#cc99ff" font-family="monospace" font-size="7" font-weight="bold" text-anchor="middle">SW2=MAIN</text>
+        </g>
+        <g onclick="showFlow('io')" class="flow-blk" style="cursor:pointer">
+          <rect x="10" y="368" width="250" height="24" rx="4" fill="#080806" stroke="#c9a22735" stroke-width="1"/>
+          <text x="70" y="383" fill="#c9a22775" font-family="monospace" font-size="9" font-weight="bold">OUT L/R</text>
+          <text x="240" y="383" fill="#c9a22745" font-family="monospace" font-size="7" text-anchor="end">→ rack · → loop</text>
+        </g>
+
+        <!-- MAIN arrows -->
+        <path d="M135,46 V62" stroke="#c9a22750" stroke-width="1.3" marker-end="url(#arr)" fill="none"/>
+        <path d="M135,98 V122" stroke="#c9a22750" stroke-width="1.3" marker-end="url(#arr)" fill="none"/>
+        <path d="M135,160 V200" stroke="#c9a22750" stroke-width="1.3" marker-end="url(#arr)" fill="none"/>
+        <path d="M135,236 V282" stroke="#c9a22750" stroke-width="1.3" marker-end="url(#arr)" fill="none"/>
+        <path d="M135,320 V368" stroke="#c9a22750" stroke-width="1.3" marker-end="url(#arr)" fill="none"/>
+
+        <!-- FEEDBACK LOOP (x=420-670) -->
+        <g onclick="showFlow('clipper')" class="flow-blk" id="fblk-loop-clip" style="cursor:pointer">
+          <rect x="385" y="22" width="240" height="66" rx="5" fill="#280808" stroke="#cc404090" stroke-width="1.5" stroke-dasharray="5,3"/>
+          <text x="505" y="44" fill="#fff" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">Clipper + Drive Xfader</text>
+          <text x="505" y="58" fill="#ff888870" font-family="monospace" font-size="8" text-anchor="middle">THAT2181 · DIP-8 · V2164 U_CLIP_V</text>
+          <text x="505" y="72" fill="#c9a22760" font-family="monospace" font-size="8" text-anchor="middle">dry/wet · pot + CV</text>
+          <rect x="583" y="18" width="44" height="13" rx="3" fill="#1E5a2a"/>
+          <text x="605" y="28" fill="#88ee88" font-family="monospace" font-size="7" font-weight="bold" text-anchor="middle">SW1=LOOP</text>
+        </g>
+        <g onclick="showFlow('ssi2144')" class="flow-blk" id="fblk-loop-ssi" style="cursor:pointer">
+          <rect x="385" y="112" width="240" height="44" rx="5" fill="#06201a" stroke="#3abfa880" stroke-width="1.4" stroke-dasharray="5,3"/>
+          <text x="505" y="132" fill="#fff" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">SSI2144 · 24dB LP</text>
+          <text x="505" y="147" fill="#3abfa880" font-family="monospace" font-size="8" text-anchor="middle">Filter Drive · Cutoff · Q · V/Oct</text>
+          <rect x="583" y="108" width="44" height="13" rx="3" fill="#38107a"/>
+          <text x="605" y="118" fill="#cc99ff" font-family="monospace" font-size="7" font-weight="bold" text-anchor="middle">SW2=LOOP</text>
+        </g>
+        <g onclick="showFlow('sendret')" class="flow-blk" id="fblk-loop-sr" style="cursor:pointer">
+          <rect x="385" y="202" width="240" height="36" rx="5" fill="#06101a" stroke="#4488cc50" stroke-width="1.2"/>
+          <text x="505" y="218" fill="#fff" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">Send / Return</text>
+          <text x="505" y="230" fill="#4488cc80" font-family="monospace" font-size="8" text-anchor="middle">V2164 Aux Xfader · insert · CV</text>
+        </g>
+        <g onclick="showFlow('fb-filters')" class="flow-blk" id="fblk-loop-ota" style="cursor:pointer">
+          <rect x="385" y="292" width="240" height="36" rx="5" fill="#0e0e1e" stroke="#9988cc50" stroke-width="1.2"/>
+          <text x="505" y="308" fill="#fff" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">LM13700 LP / HP</text>
+          <text x="505" y="320" fill="#9988cc80" font-family="monospace" font-size="8" text-anchor="middle">OTA · attenuverter CV · stability</text>
+        </g>
+        <g onclick="showFlow('phase')" class="flow-blk" id="fblk-loop-phase" style="cursor:pointer">
+          <rect x="385" y="378" width="240" height="36" rx="5" fill="#18082a" stroke="#cc55ff60" stroke-width="1.3"/>
+          <text x="505" y="394" fill="#fff" font-family="monospace" font-size="10" font-weight="bold" text-anchor="middle">Phase Inverter</text>
+          <text x="505" y="406" fill="#cc55ff80" font-family="monospace" font-size="8" text-anchor="middle">TL072 × 4 · attenuverter · pot+CV</text>
+        </g>
+
+        <!-- Loop internal arrows -->
+        <path d="M505,88 V112" stroke="#ff773360" stroke-width="1.3" marker-end="url(#arr-fb)" fill="none"/>
+        <path d="M505,156 V202" stroke="#ff773355" stroke-width="1.3" marker-end="url(#arr-fb)" fill="none"/>
+        <path d="M505,238 V292" stroke="#9988cc55" stroke-width="1.3" marker-end="url(#arr)" fill="none"/>
+        <path d="M505,328 V378" stroke="#9988cc55" stroke-width="1.3" marker-end="url(#arr)" fill="none"/>
+
+        <!-- ROUTING: OUT → loop entry (orange, rounded) -->
+        <path id="flow-to-loop"
+          d="M260,380 H310 Q320,380 320,365 V55 Q320,38 335,38 H385"
+          fill="none" stroke="#ff7733" stroke-width="1.8" stroke-dasharray="6,3"
+          marker-end="url(#arr-fb)" opacity="0.75"/>
+        <text x="335" y="26" fill="#ff773365" font-family="monospace" font-size="7">OUT→loop</text>
+
+        <!-- ROUTING: Phase Inverter → Xfader WET (purple/blue, rounded) -->
+        <path id="flow-ph-return"
+          d="M385,396 H320 Q308,396 308,380 V155 Q308,138 296,152 H260"
+          fill="none" stroke="#cc55ff" stroke-width="1.7" stroke-dasharray="4,3"
+          marker-end="url(#arr-ph)" opacity="0.6"/>
+        <text id="flow-ph-txt" x="285" y="465" fill="#cc55ff60" font-family="monospace" font-size="7" text-anchor="middle">loop return</text>
+        </svg>
+
+        <div class="flow-desc" id="flow-desc">
+          <p style="color:var(--dimmed);font-style:italic">← Click any block to see details</p>
+        </div>
+      </div>
+
+      <!-- RIGHT: Interactive module panel -->
+      <div class="signal-module">
+        <svg id="module-panel-svg" viewBox="0 0 260 560" width="260" style="display:block;margin:0 auto;filter:drop-shadow(0 6px 40px rgba(201,162,39,0.18))">
+          <defs>
+            <radialGradient id="mkg" cx="38%" cy="32%"><stop offset="0%" stop-color="#606060"/><stop offset="100%" stop-color="#161616"/></radialGradient>
+            <radialGradient id="mkg2" cx="38%" cy="32%"><stop offset="0%" stop-color="#444"/><stop offset="100%" stop-color="#0d0d0d"/></radialGradient>
+            <radialGradient id="mjg" cx="40%" cy="35%"><stop offset="0%" stop-color="#252525"/><stop offset="100%" stop-color="#080808"/></radialGradient>
+            <radialGradient id="mgold" cx="40%" cy="30%"><stop offset="0%" stop-color="#e8c040"/><stop offset="100%" stop-color="#9a6a10"/></radialGradient>
+          </defs>
+
+          <!-- Panel bg -->
+          <rect width="260" height="560" rx="2" fill="#0c0a07"/>
+
+          <!-- Corner ornaments -->
+          <g stroke="#c9a227" stroke-width="0.9" fill="none" opacity="0.55">
+            <path d="M7,7 L7,19 M7,7 L19,7"/>
+            <path d="M253,7 L253,19 M253,7 L241,7"/>
+            <path d="M7,553 L7,541 M7,553 L19,553"/>
+            <path d="M253,553 L253,541 M253,553 L241,553"/>
+          </g>
+          <!-- Mounting holes -->
+          <circle cx="16" cy="11" r="3.5" fill="#080808" stroke="#2a2010" stroke-width="0.8"/>
+          <circle cx="244" cy="11" r="3.5" fill="#080808" stroke="#2a2010" stroke-width="0.8"/>
+          <circle cx="16" cy="549" r="3.5" fill="#080808" stroke="#2a2010" stroke-width="0.8"/>
+          <circle cx="244" cy="549" r="3.5" fill="#080808" stroke="#2a2010" stroke-width="0.8"/>
+
+          <!-- ══ ROW 1: DIODE · FEED D/W · AUX D/W · PHASE ══ -->
+          <g class="panel-knob" id="pk-drive" data-target="drive-glow" data-val="65" transform="translate(32,48)" style="cursor:ns-resize">
+            <circle r="20" fill="url(#mkg)" stroke="#cc404090" stroke-width="1.5"/>
+            <circle r="14" fill="none" stroke="#cc404018" stroke-width="8" stroke-dasharray="72 14" stroke-dashoffset="17" transform="rotate(-135)"/>
+            <circle r="14" class="pk-arc" fill="none" stroke="#cc4040" stroke-width="3.5" stroke-dasharray="0 86" stroke-linecap="round" stroke-dashoffset="17" transform="rotate(-135)"/>
+            <line class="pk-needle" x1="0" y1="-8" x2="0" y2="-17" stroke="#cc4040" stroke-width="2" stroke-linecap="round" transform="rotate(42)"/>
+            <text x="0" y="31" fill="#c9a22788" font-family="monospace" font-size="7" text-anchor="middle" letter-spacing="0.3">DIODE</text>
+          </g>
+          <g class="panel-knob" id="pk-feed" data-target="feed-glow" data-val="45" transform="translate(98,48)" style="cursor:ns-resize">
+            <circle r="20" fill="url(#mkg)" stroke="#ff773370" stroke-width="1.5"/>
+            <circle r="14" fill="none" stroke="#ff773318" stroke-width="8" stroke-dasharray="72 14" stroke-dashoffset="17" transform="rotate(-135)"/>
+            <circle r="14" class="pk-arc" fill="none" stroke="#ff7733" stroke-width="3.5" stroke-dasharray="0 86" stroke-linecap="round" stroke-dashoffset="17" transform="rotate(-135)"/>
+            <line class="pk-needle" x1="0" y1="-8" x2="0" y2="-17" stroke="#ff7733" stroke-width="2" stroke-linecap="round" transform="rotate(-18)"/>
+            <text x="0" y="31" fill="#c9a22788" font-family="monospace" font-size="7" text-anchor="middle">FEED D/W</text>
+          </g>
+          <g class="panel-knob" id="pk-aux" data-target="aux-glow" data-val="0" transform="translate(164,48)" style="cursor:ns-resize">
+            <circle r="20" fill="url(#mkg2)" stroke="#4488cc60" stroke-width="1.5"/>
+            <circle r="14" fill="none" stroke="#4488cc18" stroke-width="8" stroke-dasharray="72 14" stroke-dashoffset="17" transform="rotate(-135)"/>
+            <circle r="14" class="pk-arc" fill="none" stroke="#4488cc" stroke-width="3.5" stroke-dasharray="0 86" stroke-linecap="round" stroke-dashoffset="17" transform="rotate(-135)"/>
+            <line class="pk-needle" x1="0" y1="-8" x2="0" y2="-17" stroke="#4488cc" stroke-width="2" stroke-linecap="round" transform="rotate(-135)"/>
+            <text x="0" y="31" fill="#c9a22788" font-family="monospace" font-size="7" text-anchor="middle">AUX D/W</text>
+          </g>
+          <g class="panel-knob" id="pk-phase" data-target="phase-glow" data-val="0" transform="translate(230,48)" style="cursor:ns-resize">
+            <circle r="20" fill="url(#mkg2)" stroke="#cc55ff60" stroke-width="1.5"/>
+            <circle r="14" fill="none" stroke="#cc55ff18" stroke-width="8" stroke-dasharray="72 14" stroke-dashoffset="17" transform="rotate(-135)"/>
+            <circle r="14" class="pk-arc" fill="none" stroke="#cc55ff" stroke-width="3.5" stroke-dasharray="0 86" stroke-linecap="round" stroke-dashoffset="17" transform="rotate(-135)"/>
+            <line class="pk-needle" x1="0" y1="-8" x2="0" y2="-17" stroke="#cc55ff" stroke-width="2" stroke-linecap="round" transform="rotate(-135)"/>
+            <text x="0" y="31" fill="#c9a22788" font-family="monospace" font-size="7" text-anchor="middle">PHASE</text>
+          </g>
+
+          <!-- ══ ROW 2: Q · FREQ · FILT DRIVE ══ -->
+          <g class="panel-knob" id="pk-q" data-target="q-glow" data-val="30" transform="translate(32,126)" style="cursor:ns-resize">
+            <circle r="15" fill="url(#mkg2)" stroke="#9055cc66" stroke-width="1.2"/>
+            <circle r="10.5" fill="none" stroke="#9055cc18" stroke-width="6" stroke-dasharray="54 11" stroke-dashoffset="14" transform="rotate(-135)"/>
+            <circle r="10.5" class="pk-arc" fill="none" stroke="#9055cc" stroke-width="2.8" stroke-dasharray="0 65" stroke-linecap="round" stroke-dashoffset="14" transform="rotate(-135)"/>
+            <line class="pk-needle" x1="0" y1="-6" x2="0" y2="-12" stroke="#9055cc" stroke-width="1.8" stroke-linecap="round" transform="rotate(-54)"/>
+            <text x="0" y="25" fill="#c9a22788" font-family="monospace" font-size="7" text-anchor="middle">Q</text>
+          </g>
+          <g class="panel-knob" id="pk-freq" data-target="filter-glow" data-val="60" transform="translate(115,126)" style="cursor:ns-resize">
+            <circle r="20" fill="url(#mkg)" stroke="#3abfa870" stroke-width="1.5"/>
+            <circle r="14" fill="none" stroke="#3abfa818" stroke-width="8" stroke-dasharray="72 14" stroke-dashoffset="17" transform="rotate(-135)"/>
+            <circle r="14" class="pk-arc" fill="none" stroke="#3abfa8" stroke-width="3.5" stroke-dasharray="0 86" stroke-linecap="round" stroke-dashoffset="17" transform="rotate(-135)"/>
+            <line class="pk-needle" x1="0" y1="-8" x2="0" y2="-17" stroke="#3abfa8" stroke-width="2" stroke-linecap="round" transform="rotate(27)"/>
+            <text x="0" y="31" fill="#c9a22788" font-family="monospace" font-size="7" text-anchor="middle">FREQ</text>
+          </g>
+          <g class="panel-knob" id="pk-filtdrive" data-target="filtdrive-glow" data-val="75" transform="translate(210,126)" style="cursor:ns-resize">
+            <circle r="15" fill="url(#mkg2)" stroke="#88bb4466" stroke-width="1.2"/>
+            <circle r="10.5" fill="none" stroke="#88bb4418" stroke-width="6" stroke-dasharray="54 11" stroke-dashoffset="14" transform="rotate(-135)"/>
+            <circle r="10.5" class="pk-arc" fill="none" stroke="#88bb44" stroke-width="2.8" stroke-dasharray="0 65" stroke-linecap="round" stroke-dashoffset="14" transform="rotate(-135)"/>
+            <line class="pk-needle" x1="0" y1="-6" x2="0" y2="-12" stroke="#88bb44" stroke-width="1.8" stroke-linecap="round" transform="rotate(67)"/>
+            <text x="0" y="25" fill="#c9a22788" font-family="monospace" font-size="6.5" text-anchor="middle">FILT DRV</text>
+          </g>
+
+          <!-- ══ ROW 3: LP · DIP-8 socket · HP ══ -->
+          <g class="panel-knob" id="pk-lp" data-target="lp-glow" data-val="70" transform="translate(32,198)" style="cursor:ns-resize">
+            <circle r="15" fill="url(#mkg2)" stroke="#9988cc66" stroke-width="1.2"/>
+            <circle r="10.5" fill="none" stroke="#9988cc18" stroke-width="6" stroke-dasharray="54 11" stroke-dashoffset="14" transform="rotate(-135)"/>
+            <circle r="10.5" class="pk-arc" fill="none" stroke="#9988cc" stroke-width="2.8" stroke-dasharray="0 65" stroke-linecap="round" stroke-dashoffset="14" transform="rotate(-135)"/>
+            <line class="pk-needle" x1="0" y1="-6" x2="0" y2="-12" stroke="#9988cc" stroke-width="1.8" stroke-linecap="round" transform="rotate(54)"/>
+            <text x="0" y="25" fill="#c9a22788" font-family="monospace" font-size="7" text-anchor="middle">LP</text>
+          </g>
+          <g class="panel-knob" id="pk-hp" data-target="hp-glow" data-val="20" transform="translate(228,198)" style="cursor:ns-resize">
+            <circle r="15" fill="url(#mkg2)" stroke="#9988cc66" stroke-width="1.2"/>
+            <circle r="10.5" fill="none" stroke="#9988cc18" stroke-width="6" stroke-dasharray="54 11" stroke-dashoffset="14" transform="rotate(-135)"/>
+            <circle r="10.5" class="pk-arc" fill="none" stroke="#9988cc" stroke-width="2.8" stroke-dasharray="0 65" stroke-linecap="round" stroke-dashoffset="14" transform="rotate(-135)"/>
+            <line class="pk-needle" x1="0" y1="-6" x2="0" y2="-12" stroke="#9988cc" stroke-width="1.8" stroke-linecap="round" transform="rotate(-54)"/>
+            <text x="0" y="25" fill="#c9a22788" font-family="monospace" font-size="7" text-anchor="middle">HP</text>
+          </g>
+
+          <!-- DIP-8 socket (2×4, pins left/right) -->
+          <g transform="translate(130,196)">
+            <rect x="-34" y="-28" width="68" height="56" rx="3.5" fill="#14100c" stroke="#3a2a14" stroke-width="1.2"/>
+            <rect x="-13" y="-19" width="26" height="38" rx="2" fill="#0a0806" opacity="0.8"/>
+            <path d="M-7,-28 Q0,-34 7,-28" fill="#0a0806" stroke="#3a2a14" stroke-width="1.2"/>
+            <!-- LEFT pins (4) -->
+            <circle cx="-34" cy="-17" r="6.5" fill="#221808" stroke="#5a3a10" stroke-width="1"/>
+            <circle cx="-34" cy="-17" r="4" fill="url(#mgold)"/>
+            <circle cx="-34" cy="-17" r="1.5" fill="#1a1000"/>
+
+            <circle cx="-34" cy="-5" r="6.5" fill="#221808" stroke="#5a3a10" stroke-width="1"/>
+            <circle cx="-34" cy="-5" r="4" fill="url(#mgold)"/>
+            <circle cx="-34" cy="-5" r="1.5" fill="#1a1000"/>
+
+            <circle cx="-34" cy="7" r="6.5" fill="#221808" stroke="#5a3a10" stroke-width="1"/>
+            <circle cx="-34" cy="7" r="4" fill="url(#mgold)"/>
+            <circle cx="-34" cy="7" r="1.5" fill="#1a1000"/>
+
+            <circle cx="-34" cy="19" r="6.5" fill="#221808" stroke="#5a3a10" stroke-width="1"/>
+            <circle cx="-34" cy="19" r="4" fill="url(#mgold)"/>
+            <circle cx="-34" cy="19" r="1.5" fill="#1a1000"/>
+
+            <!-- RIGHT pins (4) -->
+            <circle cx="34" cy="-17" r="6.5" fill="#221808" stroke="#5a3a10" stroke-width="1"/>
+            <circle cx="34" cy="-17" r="4" fill="url(#mgold)"/>
+            <circle cx="34" cy="-17" r="1.5" fill="#1a1000"/>
+
+            <circle cx="34" cy="-5" r="6.5" fill="#221808" stroke="#5a3a10" stroke-width="1"/>
+            <circle cx="34" cy="-5" r="4" fill="url(#mgold)"/>
+            <circle cx="34" cy="-5" r="1.5" fill="#1a1000"/>
+
+            <circle cx="34" cy="7" r="6.5" fill="#221808" stroke="#5a3a10" stroke-width="1"/>
+            <circle cx="34" cy="7" r="4" fill="url(#mgold)"/>
+            <circle cx="34" cy="7" r="1.5" fill="#1a1000"/>
+
+            <circle cx="34" cy="19" r="6.5" fill="#221808" stroke="#5a3a10" stroke-width="1"/>
+            <circle cx="34" cy="19" r="4" fill="url(#mgold)"/>
+            <circle cx="34" cy="19" r="1.5" fill="#1a1000"/>
+
+            <text x="0" y="36" fill="#c9a22760" font-family="monospace" font-size="6" text-anchor="middle" letter-spacing="0.5">DIP-8</text>
+          </g>
+
+          <!-- ══ SW1/SW2 Thonk bicolour LED buttons ══ -->
+          <line x1="14" y1="238" x2="246" y2="238" stroke="#c9a22722" stroke-width="0.6"/>
+          <text x="65" y="250" fill="#33663355" font-family="monospace" font-size="6" text-anchor="middle" letter-spacing="0.5">CLIPPER</text>
+          <text x="195" y="250" fill="#44224455" font-family="monospace" font-size="6" text-anchor="middle" letter-spacing="0.5">FILTER</text>
+          <g id="panel-sw1" onclick="toggleSW(1)" style="cursor:pointer">
+            <rect x="38" y="254" width="36" height="36" rx="5" fill="#0d1a0d" stroke="#1E8840" stroke-width="1.8"/>
+            <circle id="psw1-led" cx="56" cy="272" r="8" fill="#1E8840" opacity="0.35"/>
+            <circle id="psw1-led2" cx="56" cy="272" r="4" fill="#44cc44" opacity="0.3"/>
+          </g>
+          <g id="panel-sw2" onclick="toggleSW(2)" style="cursor:pointer">
+            <rect x="186" y="254" width="36" height="36" rx="5" fill="#0d0416" stroke="#6E24A0" stroke-width="1.8"/>
+            <circle id="psw2-led" cx="204" cy="272" r="8" fill="#6E24A0" opacity="0.35"/>
+            <circle id="psw2-led2" cx="204" cy="272" r="4" fill="#aa66ff" opacity="0.3"/>
+          </g>
+
+          <!-- ══ SEPARATOR ══ -->
+          <line x1="14" y1="302" x2="246" y2="302" stroke="#c9a22722" stroke-width="0.6"/>
+
+          <!-- ══ CV JACKS ROW 1 ══ -->
+          <g>
+            <circle cx="28" cy="323" r="11" fill="url(#mjg)" stroke="#2a2010" stroke-width="1.4"/>
+            <circle cx="28" cy="323" r="5.5" fill="#0a0a0a" stroke="#c9a22738" stroke-width="0.6"/>
+            <circle cx="28" cy="323" r="2" fill="#2a2a2a"/>
+            <text x="28" y="341" fill="#c9a22770" font-family="monospace" font-size="5.5" text-anchor="middle">DIODE</text>
+
+            <circle cx="80" cy="323" r="11" fill="url(#mjg)" stroke="#2a2010" stroke-width="1.4"/>
+            <circle cx="80" cy="323" r="5.5" fill="#0a0a0a" stroke="#c9a22738" stroke-width="0.6"/>
+            <circle cx="80" cy="323" r="2" fill="#2a2a2a"/>
+            <text x="80" y="341" fill="#c9a22770" font-family="monospace" font-size="5.5" text-anchor="middle">FREQ</text>
+
+            <circle cx="132" cy="323" r="11" fill="url(#mjg)" stroke="#2a2010" stroke-width="1.4"/>
+            <circle cx="132" cy="323" r="5.5" fill="#0a0a0a" stroke="#c9a22738" stroke-width="0.6"/>
+            <circle cx="132" cy="323" r="2" fill="#2a2a2a"/>
+            <text x="132" y="341" fill="#c9a22770" font-family="monospace" font-size="5.5" text-anchor="middle">AUX</text>
+
+            <circle cx="184" cy="323" r="11" fill="url(#mjg)" stroke="#2a2010" stroke-width="1.4"/>
+            <circle cx="184" cy="323" r="5.5" fill="#0a0a0a" stroke="#c9a22738" stroke-width="0.6"/>
+            <circle cx="184" cy="323" r="2" fill="#2a2a2a"/>
+            <text x="184" y="341" fill="#c9a22770" font-family="monospace" font-size="5.5" text-anchor="middle">V/OCT</text>
+
+            <circle cx="236" cy="323" r="11" fill="url(#mjg)" stroke="#2a2010" stroke-width="1.4"/>
+            <circle cx="236" cy="323" r="5.5" fill="#0a0a0a" stroke="#c9a22738" stroke-width="0.6"/>
+            <circle cx="236" cy="323" r="2" fill="#2a2a2a"/>
+            <text x="236" y="341" fill="#c9a22770" font-family="monospace" font-size="5.5" text-anchor="middle">PHASE</text>
+          </g>
+
+          <!-- CV JACKS ROW 2 -->
+          <g>
+            <circle cx="28" cy="362" r="11" fill="url(#mjg)" stroke="#2a2010" stroke-width="1.4"/>
+            <circle cx="28" cy="362" r="5.5" fill="#0a0a0a" stroke="#c9a22738" stroke-width="0.6"/>
+            <circle cx="28" cy="362" r="2" fill="#2a2a2a"/>
+            <text x="28" y="380" fill="#c9a22770" font-family="monospace" font-size="5.5" text-anchor="middle">LP</text>
+
+            <circle cx="80" cy="362" r="11" fill="url(#mjg)" stroke="#2a2010" stroke-width="1.4"/>
+            <circle cx="80" cy="362" r="5.5" fill="#0a0a0a" stroke="#c9a22738" stroke-width="0.6"/>
+            <circle cx="80" cy="362" r="2" fill="#2a2a2a"/>
+            <text x="80" y="380" fill="#c9a22770" font-family="monospace" font-size="5.5" text-anchor="middle">HP</text>
+
+            <circle cx="132" cy="362" r="11" fill="url(#mjg)" stroke="#2a2010" stroke-width="1.4"/>
+            <circle cx="132" cy="362" r="5.5" fill="#0a0a0a" stroke="#c9a22738" stroke-width="0.6"/>
+            <circle cx="132" cy="362" r="2" fill="#2a2a2a"/>
+            <text x="132" y="380" fill="#c9a22770" font-family="monospace" font-size="5.5" text-anchor="middle">SW1</text>
+
+            <circle cx="184" cy="362" r="11" fill="url(#mjg)" stroke="#2a2010" stroke-width="1.4"/>
+            <circle cx="184" cy="362" r="5.5" fill="#0a0a0a" stroke="#c9a22738" stroke-width="0.6"/>
+            <circle cx="184" cy="362" r="2" fill="#2a2a2a"/>
+            <text x="184" y="380" fill="#c9a22770" font-family="monospace" font-size="5.5" text-anchor="middle">SW2</text>
+
+            <circle cx="236" cy="362" r="11" fill="url(#mjg)" stroke="#2a2010" stroke-width="1.4"/>
+            <circle cx="236" cy="362" r="5.5" fill="#0a0a0a" stroke="#c9a22738" stroke-width="0.6"/>
+            <circle cx="236" cy="362" r="2" fill="#2a2a2a"/>
+            <text x="236" y="380" fill="#c9a22770" font-family="monospace" font-size="5.5" text-anchor="middle">FEED</text>
+          </g>
+
+          <!-- ══ AUDIO JACKS ══ -->
+          <line x1="14" y1="390" x2="246" y2="390" stroke="#c9a22722" stroke-width="0.6"/>
+          <g>
+            <circle cx="28" cy="414" r="13" fill="url(#mjg)" stroke="#3a2a10" stroke-width="1.8"/>
+            <circle cx="28" cy="414" r="6.5" fill="#0a0a0a" stroke="#c9a22748" stroke-width="0.7"/>
+            <circle cx="28" cy="414" r="2.5" fill="#1a1408"/>
+            <text x="28" y="433" fill="#c9a22782" font-family="monospace" font-size="5.5" text-anchor="middle">IN L</text>
+
+            <circle cx="90" cy="414" r="13" fill="url(#mjg)" stroke="#3a2a10" stroke-width="1.8"/>
+            <circle cx="90" cy="414" r="6.5" fill="#0a0a0a" stroke="#c9a22748" stroke-width="0.7"/>
+            <circle cx="90" cy="414" r="2.5" fill="#1a1408"/>
+            <text x="90" y="433" fill="#c9a22782" font-family="monospace" font-size="5.5" text-anchor="middle">SEND L</text>
+
+            <circle cx="152" cy="414" r="13" fill="url(#mjg)" stroke="#3a2a10" stroke-width="1.8"/>
+            <circle cx="152" cy="414" r="6.5" fill="#0a0a0a" stroke="#c9a22748" stroke-width="0.7"/>
+            <circle cx="152" cy="414" r="2.5" fill="#1a1408"/>
+            <text x="152" y="433" fill="#c9a22782" font-family="monospace" font-size="5.5" text-anchor="middle">SEND R</text>
+
+            <circle cx="214" cy="414" r="13" fill="url(#mjg)" stroke="#3a2a10" stroke-width="1.8"/>
+            <circle cx="214" cy="414" r="6.5" fill="#0a0a0a" stroke="#c9a22748" stroke-width="0.7"/>
+            <circle cx="214" cy="414" r="2.5" fill="#1a1408"/>
+            <text x="214" y="433" fill="#c9a22782" font-family="monospace" font-size="5.5" text-anchor="middle">OUT L</text>
+          </g>
+          <g>
+            <circle cx="28" cy="464" r="13" fill="url(#mjg)" stroke="#3a2a10" stroke-width="1.8"/>
+            <circle cx="28" cy="464" r="6.5" fill="#0a0a0a" stroke="#c9a22748" stroke-width="0.7"/>
+            <circle cx="28" cy="464" r="2.5" fill="#1a1408"/>
+            <text x="28" y="483" fill="#c9a22782" font-family="monospace" font-size="5.5" text-anchor="middle">IN R</text>
+
+            <circle cx="90" cy="464" r="13" fill="url(#mjg)" stroke="#3a2a10" stroke-width="1.8"/>
+            <circle cx="90" cy="464" r="6.5" fill="#0a0a0a" stroke="#c9a22748" stroke-width="0.7"/>
+            <circle cx="90" cy="464" r="2.5" fill="#1a1408"/>
+            <text x="90" y="483" fill="#c9a22782" font-family="monospace" font-size="5.5" text-anchor="middle">RET L</text>
+
+            <circle cx="152" cy="464" r="13" fill="url(#mjg)" stroke="#3a2a10" stroke-width="1.8"/>
+            <circle cx="152" cy="464" r="6.5" fill="#0a0a0a" stroke="#c9a22748" stroke-width="0.7"/>
+            <circle cx="152" cy="464" r="2.5" fill="#1a1408"/>
+            <text x="152" y="483" fill="#c9a22782" font-family="monospace" font-size="5.5" text-anchor="middle">RET R</text>
+
+            <circle cx="214" cy="464" r="13" fill="url(#mjg)" stroke="#3a2a10" stroke-width="1.8"/>
+            <circle cx="214" cy="464" r="6.5" fill="#0a0a0a" stroke="#c9a22748" stroke-width="0.7"/>
+            <circle cx="214" cy="464" r="2.5" fill="#1a1408"/>
+            <text x="214" y="483" fill="#c9a22782" font-family="monospace" font-size="5.5" text-anchor="middle">OUT R</text>
+          </g>
+
+          <!-- Bottom label -->
+          <line x1="14" y1="496" x2="246" y2="496" stroke="#c9a22720" stroke-width="0.6"/>
+          <text x="130" y="514" fill="#c9a22888" font-family="'Pirata One',serif" font-size="12" text-anchor="middle" letter-spacing="2">Feedback Loop</text>
+          <text x="130" y="530" fill="#c9a22750" font-family="monospace" font-size="6" text-anchor="middle" letter-spacing="1">14 HP · ±12V · EURORACK</text>
+        </svg>
+      </div>
+    </div>
+
+<div class="section-divider"></div>
+
+<!-- ══ FEATURES ══ -->
+<section id="features" class="section">
+  <div class="container">
+    <div class="orn-line fade-in">
+      <span style="font-family:var(--ff-mono);font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase">Capabilities</span>
+    </div>
+    <h2 class="fade-in">Features</h2>
+    <div class="features-grid fade-in">
+
+      <div class="feat-card" onclick="toggleFeat(0)">
+        <div class="feat-tag">Drive · Distortion</div>
+        <h3>Diode Clipper</h3>
+        <p>Asymmetric soft-clipping with a full VCA drive stage. Germanium-style warmth or aggressive hard clipping — voltage-controlled via CV input.</p>
+      </div>
+
+      <div class="feat-card" onclick="toggleFeat(1)">
+        <div class="feat-tag">Filter · 24dB</div>
+        <h3>SSI2144 Ladder</h3>
+        <p>Classic 24dB/oct lowpass from Sound Semiconductor. V/Oct tracking, independent resonance (Q) control with trimmer, stereo-linked on a swappable daughterboard.</p>
+      </div>
+
+      <div class="feat-card" onclick="toggleFeat(2)">
+        <div class="feat-tag">Routing · Architecture</div>
+        <h3>Dual Routing Switches</h3>
+        <p>SW1 and SW2 route the Clipper and Filter independently between the main signal path and the feedback loop. One module, four sonic configurations.</p>
+      </div>
+
+      <div class="feat-card" onclick="toggleFeat(3)">
+        <div class="feat-tag">Insert · S/R</div>
+        <h3>Send / Return</h3>
+        <p>Stereo insert loop between the feedback path output and the mix stage. Patch any external module into the feedback chain — delay, reverb, pitch shifting.</p>
+      </div>
+
+      <div class="feat-detail" id="feat-detail-0">
+        <h4>Diode Clipper — Technical Detail</h4>
+        <div class="feat-detail-grid">
+          <div class="feat-spec"><div class="label">Topology</div><div class="value">Asymmetric diode pair · op-amp drive stage</div></div>
+          <div class="feat-spec"><div class="label">Drive VCA</div><div class="value">THAT2181 × 2 · log-law gain</div></div>
+          <div class="feat-spec"><div class="label">CV Input</div><div class="value">0–5V · 100kΩ series · BAT54S protected</div></div>
+          <div class="feat-spec"><div class="label">Placement</div><div class="value">SW1=MAIN: pre-filter · SW1=LOOP: in feedback</div></div>
+          <div class="feat-spec"><div class="label">V2164 Xfade</div><div class="value">Dry/wet blend via quad VCA crossfader</div></div>
+          <div class="feat-spec"><div class="label">Character</div><div class="value">Soft → hard clip · even/odd harmonic mix</div></div>
+        </div>
+      </div>
+
+      <div class="feat-detail" id="feat-detail-1">
+        <h4>SSI2144 — Technical Detail</h4>
+        <div class="feat-detail-grid">
+          <div class="feat-spec"><div class="label">Chip</div><div class="value">SSI2144 (Sound Semiconductor)</div></div>
+          <div class="feat-spec"><div class="label">Response</div><div class="value">24dB/oct lowpass ladder</div></div>
+          <div class="feat-spec"><div class="label">V/Oct</div><div class="value">TL072 summer · AB501 sub-audio fix</div></div>
+          <div class="feat-spec"><div class="label">Resonance</div><div class="value">Panel Q pot + 3296W trim · self-osc capable</div></div>
+          <div class="feat-spec"><div class="label">Format</div><div class="value">SSOP-16 on swappable daughterboard</div></div>
+          <div class="feat-spec"><div class="label">Routing</div><div class="value">SW2=MAIN: serial · SW2=LOOP: in feedback</div></div>
+        </div>
+      </div>
+
+      <div class="feat-detail" id="feat-detail-2">
+        <h4>Routing Logic — Technical Detail</h4>
+        <div class="feat-detail-grid">
+          <div class="feat-spec"><div class="label">Logic IC</div><div class="value">74HC74 T-Flip-Flop</div></div>
+          <div class="feat-spec"><div class="label">Debounce</div><div class="value">74HC14 Schmitt inverter</div></div>
+          <div class="feat-spec"><div class="label">CV Trigger</div><div class="value">0–5V momentary · 1N4148 OR + pull-down</div></div>
+          <div class="feat-spec"><div class="label">Power-on reset</div><div class="value">RC 10kΩ+1µF → 74HC14 → CLR</div></div>
+          <div class="feat-spec"><div class="label">Configs</div><div class="value">MAIN+MAIN / LOOP+LOOP / MAIN+LOOP / LOOP+MAIN</div></div>
+          <div class="feat-spec"><div class="label">Indication</div><div class="value">LED per switch · state visible at a glance</div></div>
+        </div>
+      </div>
+
+      <div class="feat-detail" id="feat-detail-3">
+        <h4>Send / Return — Technical Detail</h4>
+        <div class="feat-detail-grid">
+          <div class="feat-spec"><div class="label">Channels</div><div class="value">Stereo L + R (4 jacks)</div></div>
+          <div class="feat-spec"><div class="label">Insert point</div><div class="value">After feedback path · before Xfader mix</div></div>
+          <div class="feat-spec"><div class="label">Level</div><div class="value">Eurorack ±5V nominal</div></div>
+          <div class="feat-spec"><div class="label">Return buffer</div><div class="value">OPA2134 unity-gain input stage</div></div>
+          <div class="feat-spec"><div class="label">Ring norm</div><div class="value">Normalled to dry signal when unplugged</div></div>
+          <div class="feat-spec"><div class="label">Use case</div><div class="value">Delay, reverb, pitch → inside the loop</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ SPECS ══ -->
+<section id="specs" class="section">
+  <div class="container">
+    <div class="orn-line fade-in">
+      <span style="font-family:var(--ff-mono);font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase">Technical Specifications</span>
+    </div>
+    <h2 class="fade-in">Specs</h2>
+    <div class="specs-layout fade-in">
+      <div>
+        <p class="spec-section-title">Format</p>
+        <table class="spec-table">
+          <tr><td>Format</td><td>Eurorack 3U</td></tr>
+          <tr><td>Width</td><td>14 HP (71.12 mm)</td></tr>
+          <tr><td>Depth</td><td>~35 mm (TBD)</td></tr>
+          <tr><td>Power</td><td>±12V, +5V (Eurorack 16-pin)</td></tr>
+          <tr><td>+12V draw</td><td>TBD (pre-PCB)</td></tr>
+          <tr><td>−12V draw</td><td>TBD (pre-PCB)</td></tr>
+          <tr><td>+5V draw</td><td>~20 mA (logic)</td></tr>
+        </table>
+        <p class="spec-section-title">Key ICs</p>
+        <table class="spec-table">
+          <tr><td>Filter</td><td>SSI2144 × 2 (stereo)</td></tr>
+          <tr><td>VCA</td><td>THAT2181 × 4</td></tr>
+          <tr><td>Crossfader</td><td>SSI2164 (V2164) × 2</td></tr>
+          <tr><td>Op-amps</td><td>LM4562 · OPA2134 · TL072</td></tr>
+          <tr><td>FB filters</td><td>LM13700 OTA × 2</td></tr>
+          <tr><td>Logic</td><td>74HC74 · 74HC14</td></tr>
+        </table>
+      </div>
+      <div>
+        <p class="spec-section-title">I/O (all 3.5mm TS/TRS)</p>
+        <div class="io-grid">
+          <div class="io-item"><div class="io-dot" style="background:#c9a227"></div><span class="name">In L/R</span><span class="type">audio in</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#c9a227"></div><span class="name">Out L/R</span><span class="type">audio out</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#cc4040"></div><span class="name">Send L/R</span><span class="type">loop out</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#cc4040"></div><span class="name">Return L/R</span><span class="type">loop in</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#4488cc"></div><span class="name">Diode CV</span><span class="type">0–5V trig</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#4488cc"></div><span class="name">Freq CV ×2</span><span class="type">1V/oct</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#4488cc"></div><span class="name">LP / HP CV</span><span class="type">filter CV</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#9055cc"></div><span class="name">V/Oct</span><span class="type">pitch track</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#9055cc"></div><span class="name">Aux CV</span><span class="type">send/ret DW</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#9055cc"></div><span class="name">Phase CV</span><span class="type">inv toggle</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#3abfa8"></div><span class="name">SW1 CV</span><span class="type">0–5V trig</span></div>
+          <div class="io-item"><div class="io-dot" style="background:#3abfa8"></div><span class="name">SW2 CV</span><span class="type">0–5V trig</span></div>
+        </div>
+        <p class="spec-section-title" style="margin-top:2rem">Panel Controls</p>
+        <table class="spec-table">
+          <tr><td>Diode</td><td>Drive amount</td></tr>
+          <tr><td>Feed D/W</td><td>Feedback dry/wet</td></tr>
+          <tr><td>Aux D/W</td><td>Send/Return dry/wet</td></tr>
+          <tr><td>Phase</td><td>Phase invert amount</td></tr>
+          <tr><td>Q</td><td>Filter resonance</td></tr>
+          <tr><td>Freq 1 / 2</td><td>Filter cutoff (HP/LP)</td></tr>
+          <tr><td>LP / HP</td><td>FB filter cutoff</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ USE CASES ══ -->
+<section id="usecases" class="section">
+  <div class="container">
+    <div class="orn-line fade-in">
+      <span style="font-family:var(--ff-mono);font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase">Patch Ideas</span>
+    </div>
+    <h2 class="fade-in">Use Cases</h2>
+    <div class="patches-grid fade-in">
+
+      <div class="patch-card" data-num="I">
+        <h3>Feedback Destruction</h3>
+        <p>Both Clipper and Filter in LOOP mode. Crank the feedback level until the loop sustains itself. Use the filter cutoff to sculpt the resonant frequency of the self-oscillating feedback.</p>
+        <div class="patch-signal">SW1=LOOP · SW2=LOOP · Q↑ · Feed D/W→wet</div>
+      </div>
+
+      <div class="patch-card" data-num="II">
+        <h3>Filtered Drive</h3>
+        <p>Clipper in MAIN path, Filter in MAIN path. Classic serial distortion-into-filter topology. Use V/Oct for pitch-tracked filter sweeps over driven bass or leads.</p>
+        <div class="patch-signal">SW1=MAIN · SW2=MAIN · V/Oct → sequencer</div>
+      </div>
+
+      <div class="patch-card" data-num="III">
+        <h3>Delay Loop Mangling</h3>
+        <p>Patch a delay or reverb into Send/Return. The wet return feeds back through the Clipper and Filter on each loop iteration. Dial in degrading echoes that distort and filter over time.</p>
+        <div class="patch-signal">Send→Delay In · Delay Out→Return · SW1=LOOP</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ GALLERY ══ -->
+<section id="gallery" class="section">
+  <div class="container fade-in">
+    <div class="orn-line">
+      <span style="font-family:var(--ff-mono);font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase">Gallery</span>
+    </div>
+    <h2>Photography</h2>
+    <p style="color:var(--muted);font-style:italic;margin-bottom:2rem">PCB and panel renders coming after Rev.1 production</p>
+    <div class="gallery-grid">
+      <div class="gallery-thumb"><span class="ph-icon">◈</span><span>Panel · front</span></div>
+      <div class="gallery-thumb"><span class="ph-icon">◈</span><span>PCB · top</span></div>
+      <div class="gallery-thumb"><span class="ph-icon">◈</span><span>In rack</span></div>
+      <div class="gallery-thumb"><span class="ph-icon">◈</span><span>Detail · jacks</span></div>
+      <div class="gallery-thumb"><span class="ph-icon">◈</span><span>SSI2144 daughterboard</span></div>
+      <div class="gallery-thumb"><span class="ph-icon">◈</span><span>Patch · studio</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ PREORDER ══ -->
+<section id="preorder" class="section">
+  <div class="container fade-in">
+    <div class="orn-line" style="justify-content:center">
+      <span style="font-family:var(--ff-mono);font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase">Early Access</span>
+    </div>
+    <h2>Preorder</h2>
+    <p class="lead">First batch is limited. Leave your email and we'll contact you when the module is ready to order.</p>
+    <p class="lead lang-ru" style="display:none">Первая партия ограничена. Оставьте email — свяжемся когда модуль будет готов к заказу.</p>
+
+    <form class="preorder-form" onsubmit="handleSignup(event)">
+      <input type="email" placeholder="your@email.com" required id="signup-email">
+      <button type="submit" class="btn-primary">Notify Me</button>
+    </form>
+    <p class="preorder-note" id="signup-msg"></p>
+
+    <div class="preorder-status">
+      <div class="ps-item"><div class="ps-num">0</div><div class="ps-label">Signups</div></div>
+      <div class="ps-item"><div class="ps-num">Rev.1</div><div class="ps-label">PCB Status</div></div>
+      <div class="ps-item"><div class="ps-num">14</div><div class="ps-label">HP</div></div>
+      <div class="ps-item"><div class="ps-num">ERC 0</div><div class="ps-label">Schematic</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="footer-logo">⊗ Feedback Loop</div>
+  <div style="color:var(--dimmed)">Eurorack Analog Processor · 14 HP · ±12V</div>
+  <div style="color:var(--dimmed)">© 2026 · All rights reserved</div>
+</footer>
+
+<script>
+// ══ TWEAKS PROTOCOL ══
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "variation": "atmospheric",
+  "accent": "gold",
+  "theme": "dark",
+  "taglineEN": "Controlled chaos. Analog feedback processor for Eurorack.",
+  "lang": "en"
+}/*EDITMODE-END*/;
+
+let tweaks = Object.assign({}, TWEAK_DEFAULTS);
+
+// Try to restore from localStorage
+try {
+  const saved = JSON.parse(localStorage.getItem('fl-tweaks') || '{}');
+  Object.assign(tweaks, saved);
+} catch(e){}
+
+function applyTweaks() {
+  const body = document.body;
+  // Variation
+  body.classList.toggle('var-technical', tweaks.variation === 'technical');
+  body.classList.toggle('var-atmospheric', tweaks.variation !== 'technical');
+  // Accent
+  body.classList.remove('accent-copper', 'accent-jade');
+  if (tweaks.accent === 'copper') body.classList.add('accent-copper');
+  if (tweaks.accent === 'jade') body.classList.add('accent-jade');
+  // Theme
+  body.classList.toggle('light', tweaks.theme === 'light');
+  // Tagline
+  document.getElementById('hero-tagline-en').textContent = tweaks.taglineEN || TWEAK_DEFAULTS.taglineEN;
+  // Language
+  const isRU = tweaks.lang === 'ru';
+  const isBoth = tweaks.lang === 'both';
+  document.querySelectorAll('.lang-ru').forEach(el => {
+    el.style.display = (isRU || isBoth) ? '' : 'none';
+  });
+  document.getElementById('hero-tagline-en').style.display = (isRU && !isBoth) ? 'none' : '';
+  // Sync tweak UI
+  document.querySelectorAll('.tweak-opt').forEach(btn => {
+    const key = btn.dataset.tweak;
+    const val = btn.dataset.val;
+    btn.classList.toggle('selected', key && tweaks[key] === val);
+  });
+  const ti = document.getElementById('tweak-tagline');
+  if (ti) ti.value = tweaks.taglineEN || '';
+  localStorage.setItem('fl-tweaks', JSON.stringify(tweaks));
+}
+
+function setTweak(key, val, btn) {
+  tweaks[key] = val;
+  applyTweaks();
+  window.parent.postMessage({ type: '__edit_mode_set_keys', edits: tweaks }, '*');
+}
+
+function setTagline(val) {
+  tweaks.taglineEN = val;
+  applyTweaks();
+  window.parent.postMessage({ type: '__edit_mode_set_keys', edits: tweaks }, '*');
+}
+
+// Register message listener FIRST
+window.addEventListener('message', e => {
+  if (e.data?.type === '__activate_edit_mode') {
+    document.getElementById('tweaks-panel').classList.add('visible');
+  } else if (e.data?.type === '__deactivate_edit_mode') {
+    document.getElementById('tweaks-panel').classList.remove('visible');
+  }
+});
+window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+
+// Apply on load
+applyTweaks();
+
+// ══ FLOW BLOCK DESCRIPTIONS ══
+const flowData = {
+  'io': { title: 'Audio I/O', body: 'Stereo 3.5mm jacks. IN L/R → input buffers. OUT L/R → output of V2164 Feedback Crossfader via OPA2134 summing amps. Ring normalling on CV jacks when unplugged.' },
+  'in-buf': { title: 'Input Buffer — LM4562 × 2', body: 'High-quality dual op-amp input stage. LM4562 chosen for low noise and high slew rate. Drives both the main signal path and taps DRY_AC directly for the feedback crossfader. Input impedance ~100kΩ.' },
+  'xfader': { title: 'V2164 Feedback Crossfader — U_XFADE_V', body: 'SSI2164 quad VCA chip blends DRY_AC (direct from input buffer) with PHASE_OUT (feedback loop WET signal). Current outputs sum at OPA2134 virtual ground nodes. Controlled by FEED D/W pot + FEEDBACK_CV. Independent L/R balance trimmers. True stereo.' },
+  'clipper': { title: 'Diode Clipper — DIP-8 Socket', body: 'Passive shunt clipping via a DIP-8 IC socket. Insert any DIP-8 diode configuration — germanium, silicon, LEDs, zeners. Empty socket = bypass. Series R 2.2kΩ. Drive VCA (THAT2181 × 2) controls input gain before clipping. SW1 routes to MAIN or LOOP. V2164 U_CLIP_V crossfader blends dry/wet.' },
+  'ssi2144': { title: 'SSI2144 24dB/oct Lowpass — U8_L/U8_R', body: 'Sound Semiconductor SSI2144 ladder filter, SSOP-16 on swappable daughterboard. V/Oct tracking via TL072 control summer + AB501 sub-audio clamp. Panel Q pot + Bourns 3296W internal trim. Filter Drive attenuator controls input level. SW2 routes to MAIN or LOOP.' },
+  'sendret': { title: 'Send / Return — V2164 Aux Crossfader', body: 'Stereo insert point in the feedback path. Send L/R → external FX → Return L/R. Normalled to dry when unplugged. V2164 crossfader blends insert with bypass via AUX D/W pot + AUX_CV. Insert delay, reverb, pitch-shift inside the loop.' },
+  'fb-filters': { title: 'LM13700 HP/LP OTA Filters', body: 'Two 1-pole OTA filters (HP and LP) in the feedback path for stability. LM13700 transconductance amp. Attenuverter CV inputs (bipolar). LP tames HF runaway; HP removes DC. Independent Q trimmers. Cutoff controlled by LP/HP panel pots.' },
+  'phase': { title: 'Phase Inverter — TL072 × 4', body: 'CV-controlled attenuverter. Continuously varies SSI2144 output between +100% (in-phase) and −100% (phase-inverted), null at center. Passive pot crossfade of signal and its TL072 inversion, buffered. Smooth zero-crossing. Output → RC+Zener softclip → Feedback Crossfader WET input.' }
+};
+
+function showFlow(key) {
+  const d = flowData[key];
+  const desc = document.getElementById('flow-desc');
+  if (!desc) return;
+  if (!d) { desc.innerHTML = '<p style="color:var(--dimmed);font-style:italic">← Click any block to see details</p>'; return; }
+  desc.innerHTML = '<h4>' + d.title + '</h4><p>' + d.body + '</p>';
+}
+
+// ══ SW TOGGLES ══
+let sw1 = false, sw2 = false; // false = will become LOOP after first toggle
+
+function toggleSW(n) {
+  if (n === 1) {
+    sw1 = !sw1;
+    document.getElementById('sw1-lbl').textContent = sw1 ? 'LOOP' : 'MAIN';
+    document.getElementById('btn-sw1').classList.toggle('active', sw1);
+    const mc = document.getElementById('fblk-main-clip');
+    const lc = document.getElementById('fblk-loop-clip');
+    if (mc) mc.style.opacity = sw1 ? '0.28' : '1';
+    if (lc) lc.style.opacity = sw1 ? '1' : '0.28';
+    updateRoutingPaths();
+    updatePanelSWLeds();
+  } else {
+    sw2 = !sw2;
+    document.getElementById('sw2-lbl').textContent = sw2 ? 'LOOP' : 'MAIN';
+    document.getElementById('btn-sw2').classList.toggle('active', sw2);
+    const ms = document.getElementById('fblk-main-ssi');
+    const ls = document.getElementById('fblk-loop-ssi');
+    if (ms) ms.style.opacity = sw2 ? '0.28' : '1';
+    if (ls) ls.style.opacity = sw2 ? '1' : '0.28';
+    updateRoutingPaths();
+    updatePanelSWLeds();
+  }
+}
+
+function updatePanelSWLeds() {
+  const led1 = document.getElementById('psw1-led');
+  const led2 = document.getElementById('psw1-led2');
+  const sw1rect = document.querySelector('#panel-sw1 rect');
+  if (led1) { led1.style.fill = sw1 ? '#44cc44' : '#1E8840'; led1.style.opacity = sw1 ? '0.8' : '0.3'; }
+  if (led2) { led2.style.fill = sw1 ? '#88ff88' : '#cc4444'; led2.style.opacity = sw1 ? '0.9' : '0.6'; }
+  if (sw1rect) sw1rect.style.stroke = sw1 ? '#44cc44' : '#cc4444';
+  const led3 = document.getElementById('psw2-led');
+  const led4 = document.getElementById('psw2-led2');
+  const sw2rect = document.querySelector('#panel-sw2 rect');
+  if (led3) { led3.style.fill = sw2 ? '#aa66ff' : '#cc8833'; led3.style.opacity = sw2 ? '0.8' : '0.4'; }
+  if (led4) { led4.style.fill = sw2 ? '#cc99ff' : '#ffaa44'; led4.style.opacity = sw2 ? '0.9' : '0.7'; }
+  if (sw2rect) sw2rect.style.stroke = sw2 ? '#9955dd' : '#cc8833';
+}
+
+function updateRoutingPaths() {
+  const toLoop = document.getElementById('flow-to-loop');
+  const ret    = document.getElementById('flow-ph-return');
+  const loopActive = sw1 || sw2;
+  if (toLoop) {
+    toLoop.style.opacity = loopActive ? '0.8' : '0.15';
+    toLoop.style.strokeDasharray = loopActive ? '6,3' : '2,6';
+  }
+  if (ret) ret.style.opacity = loopActive ? '0.65' : '0.15';
+}
+
+// init: SW1=LOOP, SW2=LOOP on load
+toggleSW(1); toggleSW(2);
+updatePanelSWLeds();
+
+// ══ KNOBS ══
+(function() {
+  const CIRC = 75.4, TRAVEL = 56.5;
+
+  const glow = (ids, r, g, b, v, base=0.15) => ids.forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    const i = v/100;
+    el.style.filter = i > 0.05
+      ? `drop-shadow(0 0 ${3+i*14}px rgba(${r},${g},${b},${base+i*0.6}))`
+      : '';
+  });
+
+  const effects = {
+    'drive-glow': (v) => {
+      glow(['fblk-loop-clip'], 204, 64, 64, v);
+      glow(['fblk-main-clip'], 204, 64, 64, v*0.5);
+    },
+    'clipdw-glow': (v) => {
+      const el = document.getElementById('fblk-loop-clip');
+      if (el) { const i=v/100; el.style.filter = `brightness(${0.7+i*0.8}) drop-shadow(0 0 ${i*10}px rgba(201,162,39,${i*0.4}))`; }
+    },
+    'filtdrive-glow': (v) => {
+      glow(['fblk-loop-ssi','fblk-main-ssi'], 136, 187, 68, v);
+    },
+    'filter-glow': (v) => {
+      glow(['fblk-loop-ssi','fblk-main-ssi'], 58, 191, 168, v);
+    },
+    'q-glow': (v) => {
+      const i = v/100;
+      ['fblk-loop-ssi','fblk-main-ssi'].forEach(id => {
+        const el = document.getElementById(id); if (!el) return;
+        const rect = el.querySelector('rect');
+        if (rect) rect.style.stroke = `rgba(144,85,204,${0.3+i*0.7})`;
+        el.style.opacity = (el.style.opacity === '0.28') ? '0.28' : String(1 - i*0.35);
+      });
+    },
+    'feed-glow': (v) => {
+      const i = v/100;
+      glow(['fblk-main-xf'], 201, 162, 39, v);
+      const path = document.getElementById('flow-to-loop');
+      if (path) {
+        path.style.stroke = `rgba(255,119,51,${0.4+i*0.5})`;
+        path.style.strokeWidth = 1.5 + i*1.5;
+        path.style.strokeDasharray = i > 0.75 ? '8,2' : '6,3';
+      }
+      const ret = document.getElementById('flow-ph-return');
+      if (ret) ret.style.opacity = String(0.3 + i*0.55);
+    },
+    'phase-glow': (v) => {
+      glow(['fblk-loop-phase'], 204, 85, 255, v);
+      const i = v/100;
+      const ret = document.getElementById('flow-ph-return');
+      const txt = document.getElementById('flow-ph-txt');
+      if (!ret) return;
+      // V-shape: bright at extremes (CCW=blue, CW=purple), dark at center (null)
+      const dist = Math.abs(v - 50) / 50; // 1 at extremes, 0 at center
+      ret.style.opacity = String(0.08 + dist * 0.85);
+      ret.style.strokeWidth = 1.2 + dist * 1.8;
+      if (v < 44) {
+        ret.setAttribute('stroke','#4488ff');
+        if (txt) { txt.setAttribute('fill','#4488ff80'); txt.textContent='negative · stabilising'; }
+      } else if (v > 56) {
+        ret.setAttribute('stroke','#cc55ff');
+        if (txt) { txt.setAttribute('fill','#cc55ff80'); txt.textContent='positive · reinforcing'; }
+      } else {
+        ret.setAttribute('stroke','#442255');
+        if (txt) { txt.setAttribute('fill','#44225560'); txt.textContent='null · loop open'; }
+      }
+    },
+    'lp-glow': (v) => { glow(['fblk-loop-ota'], 153, 136, 204, v); },
+    'hp-glow': (v) => {
+      const el = document.getElementById('fblk-loop-ota'); if (!el) return;
+      const i = v/100;
+      const rect = el.querySelector('rect');
+      if (rect) rect.style.strokeWidth = 1 + i*2.5;
+    },
+    'aux-glow': (v) => { glow(['fblk-loop-sr'], 68, 136, 204, v); }
+  };
+
+  function updateKnob(item, val) {
+    val = Math.max(0, Math.min(100, val));
+    item.dataset.val = val;
+    const arc = item.querySelector('.knob-arc');
+    const needle = item.querySelector('.knob-needle');
+    const valEl = item.querySelector('.knob-val');
+    if (arc) {
+      const filled = (val/100) * TRAVEL;
+      arc.setAttribute('stroke-dasharray', `${filled} ${CIRC}`);
+    }
+    if (needle) {
+      const angle = -135 + (val/100)*270;
+      needle.setAttribute('transform', `rotate(${angle})`);
+    }
+    if (valEl) valEl.textContent = val;
+    const target = item.dataset.target;
+    if (target && effects[target]) effects[target](val);
+  }
+
+  document.querySelectorAll('.knob-item').forEach(item => {
+    updateKnob(item, parseInt(item.dataset.val) || 0);
+    let startY = 0, startVal = 0;
+    const onStart = (e) => {
+      e.preventDefault();
+      startY = e.touches ? e.touches[0].clientY : e.clientY;
+      startVal = parseInt(item.dataset.val);
+      item.classList.add('dragging');
+      const onMove = (e2) => {
+        const y = e2.touches ? e2.touches[0].clientY : e2.clientY;
+        const delta = Math.round((startY - y) * 0.8);
+        updateKnob(item, startVal + delta);
+      };
+      const onEnd = () => {
+        item.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onEnd);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onEnd);
+    };
+    item.addEventListener('mousedown', onStart);
+    item.addEventListener('touchstart', onStart, { passive: false });
+  });
+})();
+
+// ══ PANEL KNOBS ══
+(function() {
+  const CIRC = 57, TRAVEL = 43; // r=9 arc
+
+  const glow = (ids, r, g, b, v, base=0.15) => ids.forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    const i = v/100;
+    el.style.filter = i > 0.05
+      ? `drop-shadow(0 0 ${3+i*14}px rgba(${r},${g},${b},${base+i*0.6}))`
+      : '';
+  });
+
+  const effects = {
+    'drive-glow':     (v) => { glow(['fblk-loop-clip','fblk-main-clip'], 204, 64, 64, v); },
+    'feed-glow':      (v) => {
+      const i = v/100;
+      glow(['fblk-main-xf'], 201, 162, 39, v);
+      const p = document.getElementById('flow-to-loop');
+      if (p) { p.style.stroke=`rgba(255,119,51,${0.4+i*0.5})`; p.style.strokeWidth=1.5+i*1.5; p.style.strokeDasharray=i>0.75?'8,2':'6,3'; }
+      const r2 = document.getElementById('flow-ph-return');
+      if (r2) r2.style.opacity = String(0.3+i*0.55);
+    },
+    'aux-glow':       (v) => { glow(['fblk-loop-sr'], 68, 136, 204, v); },
+    'phase-glow': (v) => {
+      glow(['fblk-loop-phase'], 204, 85, 255, v);
+      const i = v/100;
+      const ret = document.getElementById('flow-ph-return');
+      const txt = document.getElementById('flow-ph-txt');
+      if (!ret) return;
+      // V-shape: bright at extremes (CCW=blue, CW=purple), dark at center (null)
+      const dist = Math.abs(v - 50) / 50; // 1 at extremes, 0 at center
+      ret.style.opacity = String(0.08 + dist * 0.85);
+      ret.style.strokeWidth = 1.2 + dist * 1.8;
+      if (v < 44) {
+        ret.setAttribute('stroke','#4488ff');
+        if (txt) { txt.setAttribute('fill','#4488ff80'); txt.textContent='negative · stabilising'; }
+      } else if (v > 56) {
+        ret.setAttribute('stroke','#cc55ff');
+        if (txt) { txt.setAttribute('fill','#cc55ff80'); txt.textContent='positive · reinforcing'; }
+      } else {
+        ret.setAttribute('stroke','#442255');
+        if (txt) { txt.setAttribute('fill','#44225560'); txt.textContent='null · loop open'; }
+      }
+    },
+    'q-glow':         (v) => {
+      const i = v/100;
+      ['fblk-loop-ssi','fblk-main-ssi'].forEach(id => {
+        const el = document.getElementById(id); if (!el) return;
+        const rect = el.querySelector('rect');
+        if (rect) rect.style.stroke=`rgba(144,85,204,${0.3+i*0.7})`;
+        if (el.style.opacity !== '0.28') el.style.opacity = String(1-i*0.35);
+      });
+    },
+    'filter-glow':    (v) => { glow(['fblk-loop-ssi','fblk-main-ssi'], 58, 191, 168, v); },
+    'filtdrive-glow': (v) => { glow(['fblk-loop-ssi','fblk-main-ssi'], 136, 187, 68, v); },
+    'lp-glow':        (v) => { glow(['fblk-loop-ota'], 153, 136, 204, v); },
+    'hp-glow':        (v) => {
+      const el = document.getElementById('fblk-loop-ota'); if (!el) return;
+      const i = v/100;
+      const rect = el.querySelector('rect');
+      if (rect) rect.style.strokeWidth = 1+i*2.5;
+    }
+  };
+
+  function updatePanelKnob(knob, val) {
+    val = Math.max(0, Math.min(100, val));
+    knob.dataset.val = val;
+    // arc: r=9 circ≈56.5, travel=270/360*56.5≈42.4
+    const arc = knob.querySelector('.pk-arc');
+    const needle = knob.querySelector('.pk-needle');
+    const tip = document.getElementById('knob-tooltip');
+    const label = knob.querySelector('text:last-child')?.textContent || '';
+    if (arc) {
+      const filled = (val/100) * TRAVEL;
+      arc.setAttribute('stroke-dasharray', `${filled} ${CIRC}`);
+    }
+    if (needle) {
+      const angle = -135 + (val/100)*270;
+      needle.setAttribute('transform', `rotate(${angle})`);
+    }
+    if (tip) tip.textContent = `${label}: ${val}`;
+    const target = knob.dataset.target;
+    if (target && effects[target]) effects[target](val);
+  }
+
+  document.querySelectorAll('.panel-knob').forEach(knob => {
+    updatePanelKnob(knob, parseInt(knob.dataset.val) || 0);
+
+    let startY = 0, startVal = 0;
+    const onStart = (e) => {
+      e.preventDefault();
+      startY = e.touches ? e.touches[0].clientY : e.clientY;
+      startVal = parseInt(knob.dataset.val);
+      knob.classList.add('dragging');
+      const onMove = (e2) => {
+        const y = e2.touches ? e2.touches[0].clientY : e2.clientY;
+        updatePanelKnob(knob, startVal + Math.round((startY - y) * 0.9));
+      };
+      const onEnd = () => {
+        knob.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onEnd);
+      document.addEventListener('touchmove', onMove, {passive:false});
+      document.addEventListener('touchend', onEnd);
+    };
+    knob.addEventListener('mousedown', onStart);
+    knob.addEventListener('touchstart', onStart, {passive:false});
+  });
+})();
+
+// ══ SCROLL FADE ══
+const io = new IntersectionObserver(entries => {
+  entries.forEach(en => { if (en.isIntersecting) en.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => io.observe(el));
+</script>
+</body>
+</html>
