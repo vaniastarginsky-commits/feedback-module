@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Feedback Loop — Stereo Analog Processor</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link href="../Documents/Pinegrow%20Projects/Plain-HTML-20260419-034933/css/theme.css" rel="stylesheet" type="text/css"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<template id="__bundler_thumbnail">
+<svg viewbox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+<rect fill="#050810" height="300" width="400"></rect>
+<text fill="#00e5ff" font-family="monospace" font-size="40" opacity="0.9" text-anchor="middle" x="200" y="155">FL</text>
+<path d="M20,150 Q80,100 140,150 Q200,200 260,120 Q320,50 380,150" fill="none" opacity="0.4" stroke="#00e5ff" stroke-width="2"></path>
+</svg>
+</template>
+<style>/* ══ RESET ══ */*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; } html { scroll-behavior: smooth; } /* ══ TOKENS ══ */:root { --bg: #050810; --bg2: #070c18; --bg3: #0a1020; --cyan: #00e5ff; --cyan2: #00b8cc; --amber: #ffb347; --dim: #1a2340; --muted: #4a6080; --text: #c8d8f0; --light: #edf3ff; --grid: rgba(0,229,255,0.04); --ff: 'Space Grotesk', sans-serif; --mono: 'JetBrains Mono', monospace; } body { background: var(--bg); color: var(--text); font-family: var(--ff); font-size: 16px; line-height: 1.6; overflow-x: hidden; } /* subtle grid overlay */body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 48px 48px; } /* CRT scan line overlay — desktop only */@media (min-width:681px) { body::after {  content: '';  position: fixed;  inset: 0;  pointer-events: none;  z-index: 999;  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.06) 2px,
+    rgba(0,0,0,0.06) 4px
+  );  opacity: 0.4; } } a { color: var(--cyan); text-decoration: none; } p { text-wrap: pretty; } /* ══ NAV ══ */nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 2.5rem; border-bottom: 1px solid rgba(0,229,255,0.08); background: rgba(5,8,16,0.85); backdrop-filter: blur(12px); } .nav-logo { font-family: var(--mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--cyan); display: flex; align-items: center; gap: 0.75rem; } .nav-logo::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 12px var(--cyan); animation: pulse 2s ease-in-out infinite; } @keyframes pulse { 0%, 100% {  opacity: 1; }  50% {  opacity: 0.3; } } .nav-links { display: flex; gap: 2.5rem; } .nav-links a { font-family: var(--mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); transition: color 0.2s; } .nav-links a:hover { color: var(--cyan); } @media (max-width:680px){ .nav-links {  display: none; }  #nav-burger {  display: block !important; }  .nav-links.open {  display: flex;  flex-direction: column;  position: fixed;  top: 72px;  left: 0;  right: 0;  background: rgba(5,8,16,0.98);  backdrop-filter: blur(20px);  padding: 1.5rem 2rem 2rem;  border-bottom: 1px solid var(--dim);  gap: 0;  z-index: 99; }  .nav-links.open a {  padding: 1rem 0;  font-size: 1rem;  border-bottom: 1px solid var(--dim);  letter-spacing: 0.05em; } } /* ══ HERO ══ */#hero { position: relative; height: 100svh; min-height: 600px; display: flex; align-items: center; justify-content: center; overflow: hidden; } .hero-canvas { position: absolute; inset: 0; z-index: 0; } .hero-content { position: relative; z-index: 2; text-align: center; padding: 0 2rem; max-width: 900px; } .hero-label { font-family: var(--mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.3em; color: var(--cyan); opacity: 0.7; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 1rem; } .hero-label::before, .hero-label::after { content: ''; flex: 0 0 40px; height: 1px; background: linear-gradient(90deg, transparent, var(--cyan)); opacity: 0.4; } .hero-label::after { transform: scaleX(-1); } .hero-title { font-size: clamp(4rem, 12vw, 10rem); font-weight: 700; line-height: 0.9; letter-spacing: -0.04em; color: var(--light); margin-bottom: 0.5rem; } .hero-title span { display: block; background: linear-gradient(135deg, var(--cyan), rgba(0,229,255,0.4)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; } .hero-sub { font-size: clamp(1rem, 2vw, 1.4rem); font-weight: 300; color: var(--muted); letter-spacing: 0.02em; margin-bottom: 3rem; } .hero-ctas { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; } .btn { font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; padding: 0.9rem 2rem; cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; } .btn-primary { background: var(--cyan); color: var(--bg); border: 1px solid var(--cyan); } .btn-primary:hover { background: transparent; color: var(--cyan); box-shadow: 0 0 30px rgba(0,229,255,0.3); } .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--dim); } .btn-ghost:hover { border-color: var(--muted); color: var(--text); } .hero-scroll { position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); z-index: 2; animation: bob 2s ease-in-out infinite; } @keyframes bob { 0%, 100% {  transform: translateX(-50%) translateY(0); }  50% {  transform: translateX(-50%) translateY(6px); } } /* ══ SECTIONS ══ */.section { padding: 8rem 0; position: relative; z-index: 1; } .container { max-width: 1200px; margin: 0 auto; padding: 0 2.5rem; } .sec-label { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.25em; color: var(--cyan); opacity: 0.6; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; } .sec-label::before { content: '//'; opacity: 0.5; } h2 { font-size: clamp(2.5rem, 5vw, 4.5rem); font-weight: 700; line-height: 1; letter-spacing: -0.03em; color: var(--light); margin-bottom: 1.5rem; } /* ══ MANIFESTO ══ */#manifesto { background: var(--bg2); border-top: 1px solid var(--dim); border-bottom: 1px solid var(--dim); } .manifesto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center; } .manifesto-copy p { font-size: 1.15rem; line-height: 1.8; color: var(--muted); margin-bottom: 1rem; } .manifesto-copy p strong { color: var(--text); font-weight: 500; } .manifesto-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--dim); } .stat { background: var(--bg2); padding: 2rem 1.5rem; border-bottom: 2px solid transparent; transition: border-color 0.2s; } .stat:hover { border-bottom-color: var(--cyan); } .stat-val { font-size: 2.5rem; font-weight: 700; letter-spacing: -0.04em; color: var(--cyan); line-height: 1; font-family: var(--mono); } .stat-label { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-top: 0.5rem; } @media (max-width:720px){ .manifesto-grid {  grid-template-columns: 1fr;  gap: 3rem; } } /* ══ SIGNAL FLOW ══ */#signal { background: var(--bg); } .signal-head { margin-bottom: 3rem; } .signal-layout { display: flex; gap: 1rem; align-items: flex-start; } .signal-diagram { flex: 1; min-width: 0; overflow-x: auto; } .signal-module { flex-shrink: 0; width: 280px; } .flow-blk { cursor: pointer; } .flow-blk:hover { filter: drop-shadow(0 0 8px rgba(0,229,255,0.35)); } .flow-blk rect { transition: filter 0.15s; } .flow-controls { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; } .flow-btn { padding: 0.5rem 1.2rem; background: transparent; font-family: var(--mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; cursor: pointer; transition: all 0.18s; border: 1px solid var(--dim); color: var(--muted); } .flow-btn:hover { border-color: var(--muted); color: var(--text); } .flow-btn.sw1.active { border-color: #44ff88; color: #44ff88; background: rgba(68,255,136,0.06); } .flow-btn.sw2.active { border-color: #aa66ff; color: #aa66ff; background: rgba(170,102,255,0.06); } .flow-btn.sw3.active { border-color: #ffb347; color: #ffb347; background: rgba(255,179,71,0.08); } .flow-desc { margin-top: 1.5rem; padding: 1.25rem 1.5rem; border: 1px solid var(--dim); border-left: 2px solid var(--cyan); background: rgba(0,229,255,0.03); font-size: 0.9rem; color: var(--muted); min-height: 80px; } .flow-desc h4 { font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--cyan); margin-bottom: 0.5rem; } /* panel knob hover */.panel-knob { transition: filter 0.15s; } .panel-knob:hover { filter: brightness(1.3); } @media (max-width:900px) { .signal-layout {  flex-direction: column; }  .signal-module {  width: 100%;  display: flex;  justify-content: center; } } /* ══ FEATURES ══ */#features { background: var(--bg2); border-top: 1px solid var(--dim); } .features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--dim); margin-top: 3rem; } .feat { background: var(--bg2); padding: 2.5rem; border-bottom: 2px solid transparent; cursor: pointer; transition: background 0.2s, border-color 0.2s; } .feat:hover, .feat.open { background: var(--bg3); border-bottom-color: var(--cyan); } .feat-tag { font-family: var(--mono); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 0.75rem; } .feat h3 { font-size: 1.5rem; font-weight: 600; color: var(--light); margin-bottom: 0.5rem; letter-spacing: -0.02em; } .feat p { font-size: 0.9rem; color: var(--muted); line-height: 1.7; } .feat-expand { grid-column: 1/-1; padding: 2rem 2.5rem; background: rgba(0,229,255,0.03); border: 1px solid var(--dim); display: none; } .feat-expand.show { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; } .feat-spec .k { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 0.3rem; } .feat-spec .v { font-size: 0.9rem; color: var(--text); } @media (max-width:680px){ .features-grid {  grid-template-columns: 1fr; }  .feat-expand.show {  grid-template-columns: 1fr; } } /* ══ USE CASES ══ */#usecases { background: var(--bg); } .patches { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--dim); margin-top: 3rem; } .patch { background: var(--bg); padding: 2.5rem 2rem; position: relative; overflow: hidden; border-bottom: 2px solid transparent; transition: border-color 0.2s; } .patch:hover { border-bottom-color: var(--amber); } .patch-num { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 1.25rem; } .patch h3 { font-size: 1.25rem; font-weight: 600; color: var(--light); margin-bottom: 0.75rem; letter-spacing: -0.02em; } .patch p { font-size: 0.875rem; color: var(--muted); line-height: 1.75; } .patch-signal { margin-top: 1rem; font-family: var(--mono); font-size: 0.6rem; color: var(--dim); letter-spacing: 0.05em; } .patch-bg { position: absolute; bottom: -2rem; right: -2rem; font-size: 8rem; font-weight: 700; letter-spacing: -0.05em; color: rgba(255,179,71,0.04); line-height: 1; pointer-events: none; user-select: none; } @media (max-width:720px){ .patches {  grid-template-columns: 1fr; } } /* ══ STORY ══ */#story { background: var(--bg2); border-top: 1px solid var(--dim); } .story-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 5rem; align-items: start; margin-top: 3rem; } .story-timeline { position: sticky; top: 8rem; } .story-step { padding: 1.25rem 0; border-bottom: 1px solid var(--dim); cursor: pointer; transition: color 0.2s; } .story-step:hover .story-step-title { color: var(--cyan); } .story-step-num { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.15em; margin-bottom: 0.25rem; } .story-step-title { font-size: 0.95rem; font-weight: 500; color: var(--text); } .story-content { } .story-entry { margin-bottom: 4rem; padding-bottom: 4rem; border-bottom: 1px solid var(--dim); } .story-entry:last-child { border-bottom: none; } .story-entry h3 { font-size: 1.75rem; font-weight: 600; color: var(--light); margin-bottom: 1rem; letter-spacing: -0.02em; } .story-entry p { color: var(--muted); line-height: 1.85; margin-bottom: 0.75rem; font-size: 1rem; } .story-code { margin: 1rem 0; padding: 1rem 1.25rem; background: var(--bg); border: 1px solid var(--dim); border-left: 2px solid var(--cyan); font-family: var(--mono); font-size: 0.75rem; color: var(--cyan); overflow-x: auto; } @media (max-width:720px){ .story-layout {  grid-template-columns: 1fr; }  .story-timeline {  position: static; } } /* ══ SPECS ══ */#specs { background: var(--bg); } .specs-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; margin-top: 3rem; } .spec-table { width: 100%; border-collapse: collapse; } .spec-table tr { border-bottom: 1px solid var(--dim); } .spec-table tr:hover { background: rgba(0,229,255,0.02); } .spec-table td { padding: 0.75rem 0; font-size: 0.875rem; vertical-align: top; } .spec-table td:first-child { font-family: var(--mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); width: 45%; padding-right: 1.5rem; } .spec-table td:last-child { color: var(--text); } .spec-section { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--cyan); opacity: 0.6; margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 1px solid var(--dim); } .io-list { margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 2rem; } .io-item { font-size: 0.8rem; display: flex; align-items: baseline; gap: 0.5rem; } .io-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; } .io-name { color: var(--text); } .io-type { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); } @media (max-width:720px){ .specs-layout {  grid-template-columns: 1fr; } } /* ══ PREORDER ══ */#preorder { background: var(--bg2); border-top: 1px solid var(--dim); text-align: center; } #preorder h2 { margin-bottom: 0.75rem; } #preorder .lead { color: var(--muted); margin-bottom: 2.5rem; font-size: 1.1rem; } .preorder-form { display: flex; gap: 0.75rem; max-width: 480px; margin: 0 auto; flex-wrap: wrap; justify-content: center; } .preorder-form input[type="email"] { flex: 1; min-width: 220px; padding: 0.9rem 1.25rem; background: var(--bg); border: 1px solid var(--dim); color: var(--text); font-family: var(--mono); font-size: 0.8rem; outline: none; transition: border-color 0.2s; } .preorder-form input:focus { border-color: var(--cyan); } .preorder-form input::placeholder { color: var(--muted); } .preorder-nums { display: flex; justify-content: center; gap: 4rem; margin-top: 3rem; flex-wrap: wrap; } .pn-num { font-family: var(--mono); font-size: 2.5rem; font-weight: 700; color: var(--cyan); letter-spacing: -0.04em; line-height: 1; } .pn-label { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-top: 0.4rem; } /* ══ FOOTER ══ */footer { padding: 2.5rem; border-top: 1px solid var(--dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; font-family: var(--mono); font-size: 0.65rem; color: var(--muted); } /* ══ TWEAKS ══ */#tweaks-panel { position: fixed; bottom: 2rem; right: 2rem; z-index: 200; background: rgba(5,8,16,0.96); border: 1px solid var(--cyan2); padding: 1.5rem; min-width: 240px; display: none; backdrop-filter: blur(12px); font-family: var(--mono); font-size: 0.72rem; } #tweaks-panel.visible { display: block; } #tweaks-panel h5 { color: var(--cyan); font-size: 0.8rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--dim); letter-spacing: 0.1em; text-transform: uppercase; } .tweak-row { margin-bottom: 0.9rem; } .tweak-row label { display: block; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.6rem; margin-bottom: 0.35rem; } .tweak-opts { display: flex; gap: 0.4rem; flex-wrap: wrap; } .tweak-opt { padding: 0.2rem 0.5rem; border: 1px solid var(--dim); color: var(--muted); background: transparent; cursor: pointer; font-family: var(--mono); font-size: 0.6rem; transition: all 0.15s; text-transform: uppercase; } .tweak-opt:hover { border-color: var(--cyan); color: var(--cyan); } .tweak-opt.selected { border-color: var(--cyan); color: var(--bg); background: var(--cyan); } /* ══ MOBILE ══ */@media (max-width:680px) { /* Sections spacing */ .section {  padding: 4rem 0; }  .container {  padding: 0 1.25rem; }  /* Hero */ .hero-title {  font-size: clamp(3rem, 18vw, 5rem); }  .hero-sub {  font-size: 1rem; }  .hero-ctas {  flex-direction: column;  align-items: center; }  .btn {  width: 100%;  max-width: 280px;  justify-content: center;  min-height: 56px; }  /* Signal flow — diagram first, panel below */ .signal-layout {  gap: 2rem; }  .signal-diagram {  overflow-x: hidden; }  .signal-diagram svg {  width: 100%;  min-width: 0; }  .signal-module {  width: 100% !important; }  .signal-module svg {  max-width: 280px; }  .flow-controls {  gap: 0.5rem; }  .flow-btn {  min-height: 48px;  font-size: 0.7rem;  padding: 0 1rem; }  /* Manifesto stats */ .manifesto-stats {  grid-template-columns: 1fr 1fr; }  .stat-val {  font-size: 2rem; }  /* Features */ .feat {  padding: 1.75rem 1.25rem; }  .feat-expand.show {  padding: 1.5rem 1.25rem; }  /* Story */ .story-entry h3 {  font-size: 1.4rem; }  .story-code {  font-size: 0.68rem; }  /* Patches */ .patch {  padding: 2rem 1.25rem; }  .patch-bg {  font-size: 5rem; }  /* Preorder nums */ .preorder-nums {  gap: 2rem; }  .pn-num {  font-size: 2rem; }  /* Footer */ footer {  flex-direction: column;  text-align: center;  gap: 0.5rem; } } /* iPhone safe area */@supports (padding: max(0px)) { nav {  padding-left: max(2.5rem, env(safe-area-inset-left));  padding-right: max(2.5rem, env(safe-area-inset-right)); }  footer {  padding-bottom: max(2.5rem, env(safe-area-inset-bottom)); }  .container {  padding-left: max(1.25rem, env(safe-area-inset-left));  padding-right: max(1.25rem, env(safe-area-inset-right)); } } /* Touch: increase knob hit area */@media (pointer: coarse) { .panel-knob {  padding: 8px;  margin: -8px; }  .flow-btn {  min-height: 52px; }  #panel-sw1 rect, #panel-sw2 rect {  transform-origin: center; } } /* Reduce motion */@media (prefers-reduced-motion: reduce) { .fade-in {  opacity: 1 !important;  transform: none !important;  transition: none !important; }  .nav-logo::before {  animation: none !important; }  .hero-scroll {  animation: none !important; } } /* ══ FADE IN ══ */.fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; } .fade-in.visible { opacity: 1; transform: none; }
+.lang-btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 0.55rem 0.9rem;
+  background: transparent;
+  border: 1px solid var(--dim);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 1rem;
+}
+.lang-btn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.lang-btn.active {
+  border-color: var(--cyan);
+  color: var(--bg);
+  background: var(--cyan);
+}
+@media (max-width:680px){
+  .lang-btn { margin-left: auto; margin-right: 0.75rem; }
+}
+</style>
+</head>
+<body>
+<!-- TWEAKS -->
+<div id="tweaks-panel">
+<h5 data-i18n="tw_title">Tweaks</h5>
+<div class="tweak-row">
+<label data-i18n="tw_accent">Accent</label>
+<div class="tweak-opts">
+<button class="tweak-opt selected" data-i18n="tw_cyan" data-key="accent" data-val="cyan" onclick="setT('accent','cyan',this)">Cyan</button>
+<button class="tweak-opt" data-i18n="tw_green" data-key="accent" data-val="green" onclick="setT('accent','green',this)">Green</button>
+<button class="tweak-opt" data-i18n="tw_violet" data-key="accent" data-val="violet" onclick="setT('accent','violet',this)">Violet</button>
+</div>
+</div>
+<div class="tweak-row">
+<label data-i18n="tw_density">Density</label>
+<div class="tweak-opts">
+<button class="tweak-opt selected" data-i18n="tw_normal" data-key="density" data-val="normal" onclick="setT('density','normal',this)">Normal</button>
+<button class="tweak-opt" data-i18n="tw_compact" data-key="density" data-val="compact" onclick="setT('density','compact',this)">Compact</button>
+</div>
+</div>
+<div class="tweak-row">
+<label data-i18n="tw_anim">Signal anim</label>
+<div class="tweak-opts">
+<button class="tweak-opt selected" data-i18n="tw_on" data-key="anim" data-val="on" onclick="setT('anim','on',this)">On</button>
+<button class="tweak-opt" data-i18n="tw_off" data-key="anim" data-val="off" onclick="setT('anim','off',this)">Off</button>
+</div>
+</div>
+</div>
+<!-- NAV -->
+<nav>
+<div class="nav-logo">Feedback Loop</div>
+<div class="nav-links" id="nav-links">
+<a data-i18n="nav_signal" href="#signal" onclick="closeMenu()">Signal</a>
+<a data-i18n="nav_features" href="#features" onclick="closeMenu()">Features</a>
+<a data-i18n="nav_story" href="#story" onclick="closeMenu()">Story</a>
+<a data-i18n="nav_specs" href="#specs" onclick="closeMenu()">Specs</a>
+<a data-i18n="nav_preorder" href="#preorder" onclick="closeMenu()">Preorder</a>
+</div>
+<button class="lang-btn" id="lang-toggle" onclick="toggleLang()">EN</button><button data-i18n="nav_menu" id="nav-burger" onclick="toggleMenu()" style="display:none;background:none;border:1px solid var(--dim);color:var(--muted);padding:0.5rem 0.75rem;font-family:var(--mono);font-size:0.65rem;letter-spacing:0.1em;cursor:pointer">MENU</button>
+</nav>
+<!-- ══ HERO ══ -->
+<section id="hero">
+<canvas class="hero-canvas" id="hero-canvas"></canvas>
+<div class="hero-content">
+<div class="hero-label" data-i18n="hero_label">Eurorack · 14 HP · Stereo Analog</div>
+<h1 class="hero-title">
+      Feedback<span>Loop</span> </h1>
+<p class="hero-sub" data-i18n="hero_sub">A controllable stereo feedback engine.<br/>Clipper, filter, phase — inside or outside the loop.</p>
+<div class="hero-ctas">
+<a class="btn btn-primary" data-i18n="hero_preorder" href="#preorder">Preorder →</a>
+<a class="btn btn-ghost" data-i18n="hero_signal" href="#signal">Signal Flow ↓</a>
+</div>
+</div>
+<div class="hero-scroll" data-i18n="hero_scroll">scroll to explore ↓</div>
+</section>
+<!-- ══ MANIFESTO ══ -->
+<section class="section" id="manifesto">
+<div class="container">
+<div class="manifesto-grid fade-in">
+<div class="manifesto-copy">
+<div class="sec-label" data-i18n="man_label">What it is</div>
+<h2 data-i18n="man_h2">Sound that feeds on itself</h2>
+<p data-i18n="man_p1">Feedback Loop is a <strong>stereo analog effects processor</strong> that puts you in control of something usually chaotic — the feedback path. Route a diode clipper and a 24dB SSI2144 filter either in the main signal chain or inside the feedback loop itself.</p>
+<p data-i18n="man_p2">Insert any external module via Send/Return. Shape the return with HP/LP OTA filters, a phase inverter, and a V2164 crossfader. The result: everything from subtle harmonic saturation to full self-oscillating feedback destruction.</p>
+<p data-i18n="man_p3">One switch press changes the architecture entirely.</p>
+</div>
+<div class="manifesto-stats">
+<div class="stat">
+<div class="stat-val">24</div>
+<div class="stat-label" data-i18n="stat1">dB/oct LP filter</div>
+</div>
+<div class="stat">
+<div class="stat-val">4×</div>
+<div class="stat-label" data-i18n="stat2">V2164 VCA cells</div>
+</div>
+<div class="stat">
+<div class="stat-val">14</div>
+<div class="stat-label" data-i18n="stat3">HP panel width</div>
+</div>
+<div class="stat">
+<div class="stat-val">ERC<br/>
+<span style="font-size:1.2rem">0</span>
+</div>
+<div class="stat-label" data-i18n="stat4">schematic errors</div>
+</div>
+<div class="stat">
+<div class="stat-val">337</div>
+<div class="stat-label" data-i18n="stat5">BOM components</div>
+</div>
+<div class="stat">
+<div class="stat-val">2×</div>
+<div class="stat-label" data-i18n="stat6">stereo channels</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ══ SIGNAL FLOW ══ -->
+<section class="section" id="signal">
+<div class="container">
+<div class="signal-head fade-in">
+<div class="sec-label" data-i18n="sig_label">Architecture</div>
+<h2 data-i18n="sig_h2">Signal Flow</h2>
+<p data-i18n="sig_p" style="color:var(--muted);margin-bottom:1.5rem">Click any block. Toggle SW1/SW2 to reroute.</p>
+<div class="flow-controls">
+<button class="flow-btn sw1 active" data-i18n-prefix-en="SW1 · Clipper: " data-i18n-prefix-ru="SW1 · Clipper: " id="btn-sw1" onclick="toggleSW(1)">SW1 · Clipper: <span id="sw1-lbl">LOOP</span>
+</button>
+<button class="flow-btn sw2 active" data-i18n-prefix-en="SW2 · Filter: " data-i18n-prefix-ru="SW2 · Filter: " id="btn-sw2" onclick="toggleSW(2)">SW2 · Filter: <span id="sw2-lbl">LOOP</span>
+</button>
+<button class="flow-btn sw3" data-i18n-prefix-en="SW3 · Mode: " data-i18n-prefix-ru="SW3 · Режим: " id="btn-sw3" onclick="toggleSW(3)">SW3 · Mode: <span id="sw3-lbl">LOOP</span>
+</button>
+</div>
+</div>
+<div class="signal-layout fade-in">
+<div class="signal-diagram">
+<svg id="flow-svg" style="overflow:visible;pointer-events:all" viewbox="0 0 375 450" width="93%">
+<defs>
+<marker id="arr" markerheight="6" markerwidth="6" orient="auto" refx="5" refy="3">
+<path d="M0,0 L6,3 L0,6 Z" fill="rgba(0,229,255,0.6)"></path>
+</marker>
+<marker id="arr-fb" markerheight="6" markerwidth="6" orient="auto" refx="5" refy="3">
+<path d="M0,0 L6,3 L0,6 Z" fill="rgba(255,179,71,0.7)"></path>
+</marker>
+<marker id="arr-ph" markerheight="6" markerwidth="6" orient="auto" refx="5" refy="3">
+<path d="M0,0 L6,3 L0,6 Z" fill="rgba(170,102,255,0.8)"></path>
+</marker>
+</defs>
+<!-- Labels -->
+<text fill="rgba(0,229,255,0.4)" font-family="monospace" font-size="7" font-weight="bold" letter-spacing="1.5" text-anchor="middle" x="75" y="14">MAIN</text>
+<text fill="rgba(255,179,71,0.4)" font-family="monospace" font-size="7" font-weight="bold" letter-spacing="1.5" text-anchor="middle" x="300" y="14">FEEDBACK LOOP</text>
+<line stroke="rgba(0,229,255,0.06)" stroke-dasharray="3,5" stroke-width="1" x1="185" x2="185" y1="5" y2="515"></line>
+<!-- MAIN PATH (x=10, w=130) -->
+<g class="flow-blk" onclick="showFlow('io')" style="cursor:pointer">
+<rect fill="#070c18" height="22" rx="3" stroke="rgba(0,229,255,0.15)" stroke-width="1" width="130" x="10" y="22"></rect>
+<text fill="rgba(0,229,255,0.55)" font-family="monospace" font-size="7.5" font-weight="bold" text-anchor="middle" x="75" y="36">IN L / IN R</text>
+</g>
+<g class="flow-blk" onclick="showFlow('in-buf')" style="cursor:pointer">
+<rect fill="#0a1020" height="34" rx="3" stroke="rgba(0,229,255,0.22)" stroke-dasharray="4,3" stroke-width="1" width="130" x="10" y="60"></rect>
+<text fill="#edf3ff" font-family="monospace" font-size="8.5" font-weight="bold" text-anchor="middle" x="75" y="76">Input Buffer</text>
+<text fill="rgba(0,229,255,0.5)" font-family="monospace" font-size="7" text-anchor="middle" x="75" y="88">LM4562 × 2</text>
+</g>
+<g class="flow-blk" id="fblk-main-xf" onclick="showFlow('xfader')" style="cursor:pointer">
+<rect fill="#0c1420" height="36" rx="3" stroke="rgba(0,229,255,0.35)" stroke-width="1.5" width="130" x="10" y="112"></rect>
+<text fill="#edf3ff" font-family="monospace" font-size="8" font-weight="bold" text-anchor="middle" x="75" y="128">FB Xfader</text>
+<text fill="rgba(0,229,255,0.5)" font-family="monospace" font-size="7" text-anchor="middle" x="75" y="141">V2164 · DRY+WET</text>
+<text fill="rgba(170,102,255,0.5)" font-family="monospace" font-size="6" x="142" y="128">← WET</text>
+</g>
+<g class="flow-blk" id="fblk-main-clip" onclick="showFlow('clipper')" style="cursor:pointer">
+<rect fill="#120808" height="34" rx="3" stroke="rgba(255,90,120,0.4)" stroke-dasharray="5,3" stroke-width="1.4" width="130" x="10" y="196"></rect>
+<text fill="#edf3ff" font-family="monospace" font-size="8.5" font-weight="bold" text-anchor="middle" x="75" y="212">Clipper</text>
+<text fill="rgba(255,90,120,0.6)" font-family="monospace" font-size="7" text-anchor="middle" x="75" y="224">DIP-8 · THAT2181</text>
+<rect fill="#0d2210" height="11" rx="2" width="50" x="90" y="192"></rect>
+<text fill="#44ff88" font-family="monospace" font-size="6" font-weight="bold" text-anchor="middle" x="115" y="201">SW1=MAIN</text>
+</g>
+<g class="flow-blk" id="fblk-main-ssi" onclick="showFlow('ssi2144')" style="cursor:pointer">
+<rect fill="#081812" height="36" rx="3" stroke="rgba(0,229,180,0.4)" stroke-dasharray="5,3" stroke-width="1.4" width="130" x="10" y="276"></rect>
+<text fill="#edf3ff" font-family="monospace" font-size="8.5" font-weight="bold" text-anchor="middle" x="75" y="293">SSI2144</text>
+<text fill="rgba(0,229,180,0.6)" font-family="monospace" font-size="7" text-anchor="middle" x="75" y="305">24dB LP · V/Oct</text>
+<rect fill="#18083a" height="11" rx="2" width="50" x="90" y="272"></rect>
+<text fill="#aa66ff" font-family="monospace" font-size="6" font-weight="bold" text-anchor="middle" x="115" y="281">SW2=MAIN</text>
+</g>
+<g class="flow-blk" onclick="showFlow('io')" style="cursor:pointer">
+<rect fill="#070c18" height="22" rx="3" stroke="rgba(0,229,255,0.15)" stroke-width="1" width="130" x="10" y="360"></rect>
+<text fill="rgba(0,229,255,0.55)" font-family="monospace" font-size="8" font-weight="bold" text-anchor="middle" x="75" y="374">OUT L/R</text>
+</g>
+<!-- Main arrows -->
+<path d="M75,44 V60" fill="none" marker-end="url(#arr)" stroke="rgba(0,229,255,0.4)" stroke-width="1.3"></path>
+<path d="M75,94 V112" fill="none" marker-end="url(#arr)" stroke="rgba(0,229,255,0.4)" stroke-width="1.3"></path>
+<path d="M75,148 V196" fill="none" marker-end="url(#arr)" stroke="rgba(0,229,255,0.4)" stroke-width="1.3"></path>
+<path d="M75,230 V276" fill="none" marker-end="url(#arr)" stroke="rgba(0,229,255,0.4)" stroke-width="1.3"></path>
+<path d="M75,312 V360" fill="none" marker-end="url(#arr)" stroke="rgba(0,229,255,0.4)" stroke-width="1.3"></path>
+<!-- FEEDBACK LOOP (x=235, w=130) -->
+<g class="flow-blk" id="fblk-loop-clip" onclick="showFlow('clipper')" style="cursor:pointer">
+<rect fill="#180808" height="60" rx="3" stroke="rgba(255,90,120,0.5)" stroke-dasharray="5,3" stroke-width="1.5" width="130" x="235" y="22"></rect>
+<text fill="#edf3ff" font-family="monospace" font-size="8.5" font-weight="bold" text-anchor="middle" x="300" y="44">Clipper+Xfader</text>
+<text fill="rgba(255,90,120,0.5)" font-family="monospace" font-size="7" text-anchor="middle" x="300" y="57">THAT2181 · V2164</text>
+<text fill="rgba(255,90,120,0.4)" font-family="monospace" font-size="6.5" text-anchor="middle" x="300" y="70">dry/wet · CV</text>
+<rect fill="#0d2210" height="11" rx="2" width="46" x="317" y="18"></rect>
+<text fill="#44ff88" font-family="monospace" font-size="6" font-weight="bold" text-anchor="middle" x="340" y="27">SW1=LOOP</text>
+</g>
+<g class="flow-blk" id="fblk-loop-ssi" onclick="showFlow('ssi2144')" style="cursor:pointer">
+<rect fill="#081812" height="36" rx="3" stroke="rgba(0,229,180,0.45)" stroke-dasharray="5,3" stroke-width="1.4" width="130" x="235" y="106"></rect>
+<text fill="#edf3ff" font-family="monospace" font-size="8.5" font-weight="bold" text-anchor="middle" x="300" y="124">SSI2144</text>
+<text fill="rgba(0,229,180,0.55)" font-family="monospace" font-size="7" text-anchor="middle" x="300" y="135">Filt Drive · Q · V/Oct</text>
+<rect fill="#18083a" height="11" rx="2" width="46" x="317" y="102"></rect>
+<text fill="#aa66ff" font-family="monospace" font-size="6" font-weight="bold" text-anchor="middle" x="340" y="111">SW2=LOOP</text>
+</g>
+<g class="flow-blk" id="fblk-loop-sr" onclick="showFlow('sendret')" style="cursor:pointer">
+<rect fill="#08101a" height="34" rx="3" stroke="rgba(0,160,255,0.35)" stroke-width="1.2" width="130" x="235" y="170"></rect>
+<text fill="#edf3ff" font-family="monospace" font-size="8.5" font-weight="bold" text-anchor="middle" x="300" y="187">Send/Return</text>
+<text fill="rgba(0,160,255,0.55)" font-family="monospace" font-size="7" text-anchor="middle" x="300" y="198">V2164 Aux · CV</text>
+</g>
+<g class="flow-blk" id="fblk-loop-ota" onclick="showFlow('fb-filters')" style="cursor:pointer">
+<rect fill="#0c0c18" height="34" rx="3" stroke="rgba(140,100,220,0.35)" stroke-width="1.2" width="130" x="235" y="232"></rect>
+<text fill="#edf3ff" font-family="monospace" font-size="8.5" font-weight="bold" text-anchor="middle" x="300" y="249">LM13700 LP/HP</text>
+<text fill="rgba(140,100,220,0.55)" font-family="monospace" font-size="7" text-anchor="middle" x="300" y="260">OTA · attenuvt CV</text>
+</g>
+<g class="flow-blk" id="fblk-loop-phase" onclick="showFlow('phase')" style="cursor:pointer">
+<rect fill="#10081e" height="34" rx="3" stroke="rgba(170,102,255,0.45)" stroke-width="1.3" width="130" x="235" y="294"></rect>
+<text fill="#edf3ff" font-family="monospace" font-size="8.5" font-weight="bold" text-anchor="middle" x="300" y="311">Phase Inv.</text>
+<text fill="rgba(170,102,255,0.55)" font-family="monospace" font-size="7" text-anchor="middle" x="300" y="322">TL072×4 · pot+CV</text>
+</g>
+<!-- Loop internal arrows -->
+<path d="M300,82 V106" fill="none" marker-end="url(#arr-fb)" stroke="rgba(255,179,71,0.45)" stroke-width="1.3"></path>
+<path d="M300,142 V170" fill="none" marker-end="url(#arr-fb)" stroke="rgba(255,179,71,0.4)" stroke-width="1.3"></path>
+<path d="M300,204 V232" fill="none" marker-end="url(#arr)" stroke="rgba(140,100,220,0.4)" stroke-width="1.3"></path>
+<path d="M300,266 V294" fill="none" marker-end="url(#arr)" stroke="rgba(140,100,220,0.4)" stroke-width="1.3"></path>
+<!-- OUT → loop (orange rounded) -->
+<path d="M140,371 H162 Q172,371 172,361 V52 Q172,38 182,38 H235" fill="none" id="flow-to-loop" marker-end="url(#arr-fb)" opacity="0.75" stroke="rgba(255,179,71,0.6)" stroke-dasharray="5,3" stroke-width="1.8"></path>
+<text fill="rgba(255,179,71,0.45)" font-family="monospace" font-size="6.5" x="196" y="27">OUT→loop</text>
+<!-- Phase → Xfader WET (purple rounded) -->
+<path d="M235,311 H208 Q198,311 198,300 V148 Q198,135 188,135 H140" fill="none" id="flow-ph-return" marker-end="url(#arr-ph)" opacity="0.55" stroke="rgba(170,102,255,0.55)" stroke-dasharray="4,3" stroke-width="1.7"></path>
+<text fill="rgba(170,102,255,0.4)" font-family="monospace" font-size="6.5" id="flow-ph-txt" text-anchor="middle" x="168" y="460">loop return</text>
+<!-- SERIES mode paths (hidden in LOOP mode) -->
+<path d="M235,311 H210 Q200,311 200,321 V360 Q200,371 190,371 H140" fill="none" id="flow-series-ph-out" marker-end="url(#arr-ph)" opacity="0.9" stroke="rgba(170,102,255,0.75)" stroke-dasharray="4,3" stroke-width="1.8" style="display:none"></path>
+<text fill="rgba(255,179,71,0.65)" font-family="monospace" font-size="6.5" id="flow-series-out-lbl" style="display:none" text-anchor="middle" x="75" y="352">↓ SEND → ext FX → RET</text>
+<text fill="rgba(170,102,255,0.5)" font-family="monospace" font-size="6" id="flow-series-chain-lbl" style="display:none" text-anchor="middle" x="187" y="390">Phase → OUT</text>
+<text fill="rgba(255,179,71,0.55)" font-family="monospace" font-size="7" font-weight="bold" id="flow-series-mode-lbl" letter-spacing="1.5" style="display:none" text-anchor="middle" x="185" y="14">SERIES</text>
+</svg>
+<div class="flow-desc" data-i18n="flow_default" id="flow-desc" style="margin-right: auto; margin-left: auto;">
+<p style="color:var(--muted);font-style:italic;font-size:0.875rem">← Click any block to see details</p>
+</div>
+</div>
+<!-- MODULE PANEL -->
+<div class="signal-module">
+<svg id="module-panel-svg" style="display: block; margin: 0px auto 0; filter: drop-shadow(0 6px 40px rgba(0,229,255,0.1)); padding-left: 0px;" viewbox="0 0 260 560" width="296">
+<defs>
+<radialgradient cx="38%" cy="32%" id="mkg">
+<stop offset="0%" stop-color="#606060"></stop>
+<stop offset="100%" stop-color="#161616"></stop>
+</radialgradient>
+<radialgradient cx="38%" cy="32%" id="mkg2">
+<stop offset="0%" stop-color="#444"></stop>
+<stop offset="100%" stop-color="#0d0d0d"></stop>
+</radialgradient>
+<radialgradient cx="40%" cy="35%" id="mjg">
+<stop offset="0%" stop-color="#252525"></stop>
+<stop offset="100%" stop-color="#080808"></stop>
+</radialgradient>
+<radialgradient cx="40%" cy="30%" id="mgold">
+<stop offset="0%" stop-color="#e8c040"></stop>
+<stop offset="100%" stop-color="#9a6a10"></stop>
+</radialgradient>
+</defs>
+<rect fill="#070c18" height="560" rx="2" width="260"></rect>
+<!-- Corner ornaments - cyan theme -->
+<g fill="none" opacity="0.3" stroke="#00e5ff" stroke-width="0.8">
+<path d="M7,7 L7,19 M7,7 L19,7"></path>
+<path d="M253,7 L253,19 M253,7 L241,7"></path>
+<path d="M7,553 L7,541 M7,553 L19,553"></path>
+<path d="M253,553 L253,541 M253,553 L241,553"></path>
+</g>
+<circle cx="16" cy="11" fill="#050810" r="3.5" stroke="#1a2340" stroke-width="0.8"></circle>
+<circle cx="244" cy="11" fill="#050810" r="3.5" stroke="#1a2340" stroke-width="0.8"></circle>
+<circle cx="16" cy="549" fill="#050810" r="3.5" stroke="#1a2340" stroke-width="0.8"></circle>
+<circle cx="244" cy="549" fill="#050810" r="3.5" stroke="#1a2340" stroke-width="0.8"></circle>
+<!-- ROW 1 knobs -->
+<g class="panel-knob" data-target="drive-glow" data-val="65" id="pk-drive" style="cursor:ns-resize" transform="translate(32,48)">
+<circle fill="url(#mkg)" r="20" stroke="rgba(255,90,120,0.5)" stroke-width="1.5"></circle>
+<circle fill="none" r="14" stroke="rgba(255,90,120,0.1)" stroke-dasharray="72 14" stroke-dashoffset="17" stroke-width="8" transform="rotate(-135)"></circle>
+<circle class="pk-arc" fill="none" r="14" stroke="#ff5a78" stroke-dasharray="0 86" stroke-dashoffset="17" stroke-linecap="round" stroke-width="3.5" transform="rotate(-135)"></circle>
+<line class="pk-needle" stroke="#ff5a78" stroke-linecap="round" stroke-width="2" transform="rotate(42)" x1="0" x2="0" y1="-8" y2="-17"></line>
+<text fill="rgba(200,216,240,0.6)" font-family="monospace" font-size="6.5" text-anchor="middle" x="0" y="31">DIODE</text>
+</g>
+<g class="panel-knob" data-target="feed-glow" data-val="45" id="pk-feed" style="cursor:ns-resize" transform="translate(98,48)">
+<circle fill="url(#mkg)" r="20" stroke="rgba(255,179,71,0.5)" stroke-width="1.5"></circle>
+<circle fill="none" r="14" stroke="rgba(255,179,71,0.1)" stroke-dasharray="72 14" stroke-dashoffset="17" stroke-width="8" transform="rotate(-135)"></circle>
+<circle class="pk-arc" fill="none" r="14" stroke="#ffb347" stroke-dasharray="0 86" stroke-dashoffset="17" stroke-linecap="round" stroke-width="3.5" transform="rotate(-135)"></circle>
+<line class="pk-needle" stroke="#ffb347" stroke-linecap="round" stroke-width="2" transform="rotate(-18)" x1="0" x2="0" y1="-8" y2="-17"></line>
+<text fill="rgba(200,216,240,0.6)" font-family="monospace" font-size="6.5" text-anchor="middle" x="0" y="31">FEED D/W</text>
+</g>
+<g class="panel-knob" data-target="aux-glow" data-val="0" id="pk-aux" style="cursor:ns-resize" transform="translate(164,48)">
+<circle fill="url(#mkg2)" r="20" stroke="rgba(0,160,255,0.4)" stroke-width="1.5"></circle>
+<circle fill="none" r="14" stroke="rgba(0,160,255,0.1)" stroke-dasharray="72 14" stroke-dashoffset="17" stroke-width="8" transform="rotate(-135)"></circle>
+<circle class="pk-arc" fill="none" r="14" stroke="#00a0ff" stroke-dasharray="0 86" stroke-dashoffset="17" stroke-linecap="round" stroke-width="3.5" transform="rotate(-135)"></circle>
+<line class="pk-needle" stroke="#00a0ff" stroke-linecap="round" stroke-width="2" transform="rotate(-135)" x1="0" x2="0" y1="-8" y2="-17"></line>
+<text fill="rgba(200,216,240,0.6)" font-family="monospace" font-size="6.5" text-anchor="middle" x="0" y="31">AUX D/W</text>
+</g>
+<g class="panel-knob" data-target="phase-glow" data-val="0" id="pk-phase" style="cursor:ns-resize" transform="translate(230,48)">
+<circle fill="url(#mkg2)" r="20" stroke="rgba(170,102,255,0.4)" stroke-width="1.5"></circle>
+<circle fill="none" r="14" stroke="rgba(170,102,255,0.1)" stroke-dasharray="72 14" stroke-dashoffset="17" stroke-width="8" transform="rotate(-135)"></circle>
+<circle class="pk-arc" fill="none" r="14" stroke="#aa66ff" stroke-dasharray="0 86" stroke-dashoffset="17" stroke-linecap="round" stroke-width="3.5" transform="rotate(-135)"></circle>
+<line class="pk-needle" stroke="#aa66ff" stroke-linecap="round" stroke-width="2" transform="rotate(-135)" x1="0" x2="0" y1="-8" y2="-17"></line>
+<text fill="rgba(200,216,240,0.6)" font-family="monospace" font-size="6.5" text-anchor="middle" x="0" y="31">PHASE</text>
+</g>
+<!-- ROW 2 -->
+<g class="panel-knob" data-target="q-glow" data-val="30" id="pk-q" style="cursor:ns-resize" transform="translate(32,126)">
+<circle fill="url(#mkg2)" r="15" stroke="rgba(140,100,220,0.4)" stroke-width="1.2"></circle>
+<circle fill="none" r="10.5" stroke="rgba(140,100,220,0.1)" stroke-dasharray="54 11" stroke-dashoffset="14" stroke-width="6" transform="rotate(-135)"></circle>
+<circle class="pk-arc" fill="none" r="10.5" stroke="#8c64dc" stroke-dasharray="0 65" stroke-dashoffset="14" stroke-linecap="round" stroke-width="2.8" transform="rotate(-135)"></circle>
+<line class="pk-needle" stroke="#8c64dc" stroke-linecap="round" stroke-width="1.8" transform="rotate(-54)" x1="0" x2="0" y1="-6" y2="-12"></line>
+<text fill="rgba(200,216,240,0.6)" font-family="monospace" font-size="6.5" text-anchor="middle" x="0" y="25">Q</text>
+</g>
+<g class="panel-knob" data-target="filter-glow" data-val="60" id="pk-freq" style="cursor:ns-resize" transform="translate(115,126)">
+<circle fill="url(#mkg)" r="20" stroke="rgba(0,229,180,0.5)" stroke-width="1.5"></circle>
+<circle fill="none" r="14" stroke="rgba(0,229,180,0.1)" stroke-dasharray="72 14" stroke-dashoffset="17" stroke-width="8" transform="rotate(-135)"></circle>
+<circle class="pk-arc" fill="none" r="14" stroke="#00e5b4" stroke-dasharray="0 86" stroke-dashoffset="17" stroke-linecap="round" stroke-width="3.5" transform="rotate(-135)"></circle>
+<line class="pk-needle" stroke="#00e5b4" stroke-linecap="round" stroke-width="2" transform="rotate(27)" x1="0" x2="0" y1="-8" y2="-17"></line>
+<text fill="rgba(200,216,240,0.6)" font-family="monospace" font-size="6.5" text-anchor="middle" x="0" y="31">FREQ</text>
+</g>
+<g class="panel-knob" data-target="filtdrive-glow" data-val="75" id="pk-filtdrive" style="cursor:ns-resize" transform="translate(210,126)">
+<circle fill="url(#mkg2)" r="15" stroke="rgba(100,200,80,0.4)" stroke-width="1.2"></circle>
+<circle fill="none" r="10.5" stroke="rgba(100,200,80,0.1)" stroke-dasharray="54 11" stroke-dashoffset="14" stroke-width="6" transform="rotate(-135)"></circle>
+<circle class="pk-arc" fill="none" r="10.5" stroke="#64c850" stroke-dasharray="0 65" stroke-dashoffset="14" stroke-linecap="round" stroke-width="2.8" transform="rotate(-135)"></circle>
+<line class="pk-needle" stroke="#64c850" stroke-linecap="round" stroke-width="1.8" transform="rotate(67)" x1="0" x2="0" y1="-6" y2="-12"></line>
+<text fill="rgba(200,216,240,0.6)" font-family="monospace" font-size="6" text-anchor="middle" x="0" y="25">FILT DRV</text>
+</g>
+<!-- ROW 3 LP · DIP-8 · HP -->
+<g class="panel-knob" data-target="lp-glow" data-val="70" id="pk-lp" style="cursor:ns-resize" transform="translate(32,198)">
+<circle fill="url(#mkg2)" r="15" stroke="rgba(140,100,220,0.35)" stroke-width="1.2"></circle>
+<circle fill="none" r="10.5" stroke="rgba(140,100,220,0.1)" stroke-dasharray="54 11" stroke-dashoffset="14" stroke-width="6" transform="rotate(-135)"></circle>
+<circle class="pk-arc" fill="none" r="10.5" stroke="#8c64dc" stroke-dasharray="0 65" stroke-dashoffset="14" stroke-linecap="round" stroke-width="2.8" transform="rotate(-135)"></circle>
+<line class="pk-needle" stroke="#8c64dc" stroke-linecap="round" stroke-width="1.8" transform="rotate(54)" x1="0" x2="0" y1="-6" y2="-12"></line>
+<text fill="rgba(200,216,240,0.6)" font-family="monospace" font-size="6.5" text-anchor="middle" x="0" y="25">LP</text>
+</g>
+<g class="panel-knob" data-target="hp-glow" data-val="20" id="pk-hp" style="cursor:ns-resize" transform="translate(228,198)">
+<circle fill="url(#mkg2)" r="15" stroke="rgba(140,100,220,0.35)" stroke-width="1.2"></circle>
+<circle fill="none" r="10.5" stroke="rgba(140,100,220,0.1)" stroke-dasharray="54 11" stroke-dashoffset="14" stroke-width="6" transform="rotate(-135)"></circle>
+<circle class="pk-arc" fill="none" r="10.5" stroke="#8c64dc" stroke-dasharray="0 65" stroke-dashoffset="14" stroke-linecap="round" stroke-width="2.8" transform="rotate(-135)"></circle>
+<line class="pk-needle" stroke="#8c64dc" stroke-linecap="round" stroke-width="1.8" transform="rotate(-54)" x1="0" x2="0" y1="-6" y2="-12"></line>
+<text fill="rgba(200,216,240,0.6)" font-family="monospace" font-size="6.5" text-anchor="middle" x="0" y="25">HP</text>
+</g>
+<!-- DIP-8 socket -->
+<g transform="translate(130,196)">
+<rect fill="#0d1018" height="56" rx="3.5" stroke="rgba(0,229,255,0.15)" stroke-width="1" width="68" x="-34" y="-28"></rect>
+<rect fill="#050810" height="38" opacity="0.9" rx="2" width="26" x="-13" y="-19"></rect>
+<path d="M-7,-28 Q0,-34 7,-28" fill="#050810" stroke="rgba(0,229,255,0.1)" stroke-width="1"></path>
+<!-- Left pins -->
+<circle cx="-34" cy="-17" fill="#1a1408" r="6.5" stroke="#3a2a10" stroke-width="1"></circle>
+<circle cx="-34" cy="-17" fill="url(#mgold)" r="4"></circle>
+<circle cx="-34" cy="-17" fill="#0a0800" r="1.5"></circle>
+<circle cx="-34" cy="-5" fill="#1a1408" r="6.5" stroke="#3a2a10" stroke-width="1"></circle>
+<circle cx="-34" cy="-5" fill="url(#mgold)" r="4"></circle>
+<circle cx="-34" cy="-5" fill="#0a0800" r="1.5"></circle>
+<circle cx="-34" cy="7" fill="#1a1408" r="6.5" stroke="#3a2a10" stroke-width="1"></circle>
+<circle cx="-34" cy="7" fill="url(#mgold)" r="4"></circle>
+<circle cx="-34" cy="7" fill="#0a0800" r="1.5"></circle>
+<circle cx="-34" cy="19" fill="#1a1408" r="6.5" stroke="#3a2a10" stroke-width="1"></circle>
+<circle cx="-34" cy="19" fill="url(#mgold)" r="4"></circle>
+<circle cx="-34" cy="19" fill="#0a0800" r="1.5"></circle>
+<!-- Right pins -->
+<circle cx="34" cy="-17" fill="#1a1408" r="6.5" stroke="#3a2a10" stroke-width="1"></circle>
+<circle cx="34" cy="-17" fill="url(#mgold)" r="4"></circle>
+<circle cx="34" cy="-17" fill="#0a0800" r="1.5"></circle>
+<circle cx="34" cy="-5" fill="#1a1408" r="6.5" stroke="#3a2a10" stroke-width="1"></circle>
+<circle cx="34" cy="-5" fill="url(#mgold)" r="4"></circle>
+<circle cx="34" cy="-5" fill="#0a0800" r="1.5"></circle>
+<circle cx="34" cy="7" fill="#1a1408" r="6.5" stroke="#3a2a10" stroke-width="1"></circle>
+<circle cx="34" cy="7" fill="url(#mgold)" r="4"></circle>
+<circle cx="34" cy="7" fill="#0a0800" r="1.5"></circle>
+<circle cx="34" cy="19" fill="#1a1408" r="6.5" stroke="#3a2a10" stroke-width="1"></circle>
+<circle cx="34" cy="19" fill="url(#mgold)" r="4"></circle>
+<circle cx="34" cy="19" fill="#0a0800" r="1.5"></circle>
+<text fill="rgba(0,229,255,0.4)" font-family="monospace" font-size="6" text-anchor="middle" x="0" y="36">DIP-8</text>
+</g>
+<!-- SW buttons -->
+<line stroke="rgba(0,229,255,0.1)" stroke-width="0.6" x1="14" x2="246" y1="238" y2="238"></line>
+<text fill="rgba(0,229,255,0.25)" font-family="monospace" font-size="5.5" text-anchor="middle" x="56" y="250">CLIPPER</text>
+<text fill="rgba(255,179,71,0.3)" font-family="monospace" font-size="5.5" text-anchor="middle" x="130" y="250">SERIES</text>
+<text fill="rgba(0,229,255,0.25)" font-family="monospace" font-size="5.5" text-anchor="middle" x="204" y="250">FILTER</text>
+<g id="panel-sw1" onclick="toggleSW(1)" style="cursor:pointer">
+<rect fill="#0a1a0a" height="36" rx="4" stroke="rgba(68,255,136,0.4)" stroke-width="1.5" width="36" x="38" y="254"></rect>
+<circle cx="56" cy="272" fill="#1E8840" id="psw1-led" opacity="0.35" r="8"></circle>
+<circle cx="56" cy="272" fill="#44ff88" id="psw1-led2" opacity="0.3" r="4"></circle>
+</g>
+<g id="panel-sw3" onclick="toggleSW(3)" style="cursor:pointer">
+<rect fill="#120a00" height="36" rx="4" stroke="rgba(255,179,71,0.35)" stroke-width="1.5" width="36" x="112" y="254"></rect>
+<circle cx="130" cy="272" fill="#604010" id="psw3-led" opacity="0.35" r="8"></circle>
+<circle cx="130" cy="272" fill="#ffb347" id="psw3-led2" opacity="0.3" r="4"></circle>
+</g>
+<g id="panel-sw2" onclick="toggleSW(2)" style="cursor:pointer">
+<rect fill="#0d0620" height="36" rx="4" stroke="rgba(170,102,255,0.4)" stroke-width="1.5" width="36" x="186" y="254"></rect>
+<circle cx="204" cy="272" fill="#6E24A0" id="psw2-led" opacity="0.35" r="8"></circle>
+<circle cx="204" cy="272" fill="#aa66ff" id="psw2-led2" opacity="0.3" r="4"></circle>
+</g>
+<!-- CV jacks -->
+<line stroke="rgba(0,229,255,0.1)" stroke-width="0.6" x1="14" x2="246" y1="302" y2="302"></line>
+<g>
+<circle cx="28" cy="323" fill="url(#mjg)" r="11" stroke="rgba(0,229,255,0.15)" stroke-width="1.2"></circle>
+<circle cx="28" cy="323" fill="#050810" r="5.5" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"></circle>
+<circle cx="28" cy="323" fill="#2a2a2a" r="2"></circle>
+<text fill="rgba(200,216,240,0.5)" font-family="monospace" font-size="5.5" text-anchor="middle" x="28" y="341">DIODE</text>
+<circle cx="80" cy="323" fill="url(#mjg)" r="11" stroke="rgba(0,229,255,0.15)" stroke-width="1.2"></circle>
+<circle cx="80" cy="323" fill="#050810" r="5.5" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"></circle>
+<circle cx="80" cy="323" fill="#2a2a2a" r="2"></circle>
+<text fill="rgba(200,216,240,0.5)" font-family="monospace" font-size="5.5" text-anchor="middle" x="80" y="341">FREQ</text>
+<circle cx="132" cy="323" fill="url(#mjg)" r="11" stroke="rgba(0,229,255,0.15)" stroke-width="1.2"></circle>
+<circle cx="132" cy="323" fill="#050810" r="5.5" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"></circle>
+<circle cx="132" cy="323" fill="#2a2a2a" r="2"></circle>
+<text fill="rgba(200,216,240,0.5)" font-family="monospace" font-size="5.5" text-anchor="middle" x="132" y="341">AUX</text>
+<circle cx="184" cy="323" fill="url(#mjg)" r="11" stroke="rgba(0,229,255,0.15)" stroke-width="1.2"></circle>
+<circle cx="184" cy="323" fill="#050810" r="5.5" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"></circle>
+<circle cx="184" cy="323" fill="#2a2a2a" r="2"></circle>
+<text fill="rgba(200,216,240,0.5)" font-family="monospace" font-size="5.5" text-anchor="middle" x="184" y="341">V/OCT</text>
+<circle cx="236" cy="323" fill="url(#mjg)" r="11" stroke="rgba(0,229,255,0.15)" stroke-width="1.2"></circle>
+<circle cx="236" cy="323" fill="#050810" r="5.5" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"></circle>
+<circle cx="236" cy="323" fill="#2a2a2a" r="2"></circle>
+<text fill="rgba(200,216,240,0.5)" font-family="monospace" font-size="5.5" text-anchor="middle" x="236" y="341">PHASE</text>
+</g>
+<g>
+<circle cx="28" cy="362" fill="url(#mjg)" r="11" stroke="rgba(0,229,255,0.15)" stroke-width="1.2"></circle>
+<circle cx="28" cy="362" fill="#050810" r="5.5" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"></circle>
+<circle cx="28" cy="362" fill="#2a2a2a" r="2"></circle>
+<text fill="rgba(200,216,240,0.5)" font-family="monospace" font-size="5.5" text-anchor="middle" x="28" y="380">LP</text>
+<circle cx="80" cy="362" fill="url(#mjg)" r="11" stroke="rgba(0,229,255,0.15)" stroke-width="1.2"></circle>
+<circle cx="80" cy="362" fill="#050810" r="5.5" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"></circle>
+<circle cx="80" cy="362" fill="#2a2a2a" r="2"></circle>
+<text fill="rgba(200,216,240,0.5)" font-family="monospace" font-size="5.5" text-anchor="middle" x="80" y="380">HP</text>
+<circle cx="132" cy="362" fill="url(#mjg)" r="11" stroke="rgba(0,229,255,0.15)" stroke-width="1.2"></circle>
+<circle cx="132" cy="362" fill="#050810" r="5.5" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"></circle>
+<circle cx="132" cy="362" fill="#2a2a2a" r="2"></circle>
+<text fill="rgba(200,216,240,0.5)" font-family="monospace" font-size="5.5" text-anchor="middle" x="132" y="380">SW1</text>
+<circle cx="184" cy="362" fill="url(#mjg)" r="11" stroke="rgba(0,229,255,0.15)" stroke-width="1.2"></circle>
+<circle cx="184" cy="362" fill="#050810" r="5.5" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"></circle>
+<circle cx="184" cy="362" fill="#2a2a2a" r="2"></circle>
+<text fill="rgba(200,216,240,0.5)" font-family="monospace" font-size="5.5" text-anchor="middle" x="184" y="380">SW2</text>
+<circle cx="236" cy="362" fill="url(#mjg)" r="11" stroke="rgba(0,229,255,0.15)" stroke-width="1.2"></circle>
+<circle cx="236" cy="362" fill="#050810" r="5.5" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"></circle>
+<circle cx="236" cy="362" fill="#2a2a2a" r="2"></circle>
+<text fill="rgba(200,216,240,0.5)" font-family="monospace" font-size="5.5" text-anchor="middle" x="236" y="380">FEED</text>
+</g>
+<!-- Audio jacks -->
+<line stroke="rgba(0,229,255,0.1)" stroke-width="0.6" x1="14" x2="246" y1="390" y2="390"></line>
+<g>
+<circle cx="28" cy="414" fill="url(#mjg)" r="13" stroke="rgba(0,229,255,0.2)" stroke-width="1.6"></circle>
+<circle cx="28" cy="414" fill="#050810" r="6.5" stroke="rgba(0,229,255,0.25)" stroke-width="0.6"></circle>
+<circle cx="28" cy="414" fill="#1a2340" r="2.5"></circle>
+<text fill="rgba(200,216,240,0.65)" font-family="monospace" font-size="5.5" text-anchor="middle" x="28" y="433">IN L</text>
+<circle cx="90" cy="414" fill="url(#mjg)" r="13" stroke="rgba(0,229,255,0.2)" stroke-width="1.6"></circle>
+<circle cx="90" cy="414" fill="#050810" r="6.5" stroke="rgba(0,229,255,0.25)" stroke-width="0.6"></circle>
+<circle cx="90" cy="414" fill="#1a2340" r="2.5"></circle>
+<text fill="rgba(200,216,240,0.65)" font-family="monospace" font-size="5.5" text-anchor="middle" x="90" y="433">SEND L</text>
+<circle cx="152" cy="414" fill="url(#mjg)" r="13" stroke="rgba(0,229,255,0.2)" stroke-width="1.6"></circle>
+<circle cx="152" cy="414" fill="#050810" r="6.5" stroke="rgba(0,229,255,0.25)" stroke-width="0.6"></circle>
+<circle cx="152" cy="414" fill="#1a2340" r="2.5"></circle>
+<text fill="rgba(200,216,240,0.65)" font-family="monospace" font-size="5.5" text-anchor="middle" x="152" y="433">SEND R</text>
+<circle cx="214" cy="414" fill="url(#mjg)" r="13" stroke="rgba(0,229,255,0.2)" stroke-width="1.6"></circle>
+<circle cx="214" cy="414" fill="#050810" r="6.5" stroke="rgba(0,229,255,0.25)" stroke-width="0.6"></circle>
+<circle cx="214" cy="414" fill="#1a2340" r="2.5"></circle>
+<text fill="rgba(200,216,240,0.65)" font-family="monospace" font-size="5.5" text-anchor="middle" x="214" y="433">OUT L</text>
+</g>
+<g>
+<circle cx="28" cy="462" fill="url(#mjg)" r="13" stroke="rgba(0,229,255,0.2)" stroke-width="1.6"></circle>
+<circle cx="28" cy="462" fill="#050810" r="6.5" stroke="rgba(0,229,255,0.25)" stroke-width="0.6"></circle>
+<circle cx="28" cy="462" fill="#1a2340" r="2.5"></circle>
+<text fill="rgba(200,216,240,0.65)" font-family="monospace" font-size="5.5" text-anchor="middle" x="28" y="481">IN R</text>
+<circle cx="90" cy="462" fill="url(#mjg)" r="13" stroke="rgba(0,229,255,0.2)" stroke-width="1.6"></circle>
+<circle cx="90" cy="462" fill="#050810" r="6.5" stroke="rgba(0,229,255,0.25)" stroke-width="0.6"></circle>
+<circle cx="90" cy="462" fill="#1a2340" r="2.5"></circle>
+<text fill="rgba(200,216,240,0.65)" font-family="monospace" font-size="5.5" text-anchor="middle" x="90" y="481">RET L</text>
+<circle cx="152" cy="462" fill="url(#mjg)" r="13" stroke="rgba(0,229,255,0.2)" stroke-width="1.6"></circle>
+<circle cx="152" cy="462" fill="#050810" r="6.5" stroke="rgba(0,229,255,0.25)" stroke-width="0.6"></circle>
+<circle cx="152" cy="462" fill="#1a2340" r="2.5"></circle>
+<text fill="rgba(200,216,240,0.65)" font-family="monospace" font-size="5.5" text-anchor="middle" x="152" y="481">RET R</text>
+<circle cx="214" cy="462" fill="url(#mjg)" r="13" stroke="rgba(0,229,255,0.2)" stroke-width="1.6"></circle>
+<circle cx="214" cy="462" fill="#050810" r="6.5" stroke="rgba(0,229,255,0.25)" stroke-width="0.6"></circle>
+<circle cx="214" cy="462" fill="#1a2340" r="2.5"></circle>
+<text fill="rgba(200,216,240,0.65)" font-family="monospace" font-size="5.5" text-anchor="middle" x="214" y="481">OUT R</text>
+</g>
+<!-- Bottom label -->
+<line stroke="rgba(0,229,255,0.1)" stroke-width="0.6" x1="14" x2="246" y1="494" y2="494"></line>
+<text fill="rgba(0,229,255,0.55)" font-family="'Space Grotesk',sans-serif" font-size="11" font-weight="600" letter-spacing="3" text-anchor="middle" x="130" y="514">FEEDBACK LOOP</text>
+<text fill="rgba(0,229,255,0.25)" font-family="monospace" font-size="5.5" letter-spacing="1" text-anchor="middle" x="130" y="530">14 HP · ±12V · EURORACK</text>
+</svg>
+</div>
+</div>
+</div>
+</section>
+<!-- ══ FEATURES ══ -->
+<section class="section" id="features">
+<div class="container">
+<div class="sec-label fade-in" data-i18n="feat_label">Capabilities</div>
+<h2 class="fade-in" data-i18n="feat_h2">What it does</h2>
+<div class="features-grid fade-in">
+<div class="feat" onclick="toggleFeat(0)">
+<div class="feat-tag" data-i18n="feat_tag1">Drive · Distortion</div>
+<h3 data-i18n="feat_h31">Diode Clipper</h3>
+<p data-i18n="feat_p1">DIP-8 socket — swap any diode pair. THAT2181 VCA controls drive level with CV. V2164 crossfader blends dry and clipped signal.</p>
+</div>
+<div class="feat" onclick="toggleFeat(1)">
+<div class="feat-tag" data-i18n="feat_tag2">Filter · 24dB LP</div>
+<h3 data-i18n="feat_h32">SSI2144 Ladder</h3>
+<p data-i18n="feat_p2">Sound Semiconductor's classic ladder filter. V/Oct pitch tracking. Independent Q trimmer. Swappable SSOP-16 daughterboard. Self-oscillation capable.</p>
+</div>
+<div class="feat" onclick="toggleFeat(2)">
+<div class="feat-tag" data-i18n="feat_tag3">Routing · Logic</div>
+<h3 data-i18n="feat_h33">Dual SW Routing</h3>
+<p data-i18n="feat_p3">74HC74 T-Flip-Flop. One button press moves Clipper or Filter between main path and feedback loop. CV-triggerable. Power-on reset.</p>
+</div>
+<div class="feat" onclick="toggleFeat(3)">
+<div class="feat-tag" data-i18n="feat_tag4">Insert · Send/Return</div>
+<h3 data-i18n="feat_h34">Loop Insert</h3>
+<p data-i18n="feat_p4">Stereo insert point inside the feedback path. Patch external delay, reverb, or pitch modules. V2164 Aux crossfader controls blend depth.</p>
+</div>
+<div class="feat-expand" id="fe-0">
+<div class="feat-spec">
+<div class="k" data-i18n="featk1">Drive VCA</div>
+<div class="v" data-i18n="featv1">THAT2181 × 2 (stereo)</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk2">Socket</div>
+<div class="v" data-i18n="featv2">DIP-8 · passive shunt</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk3">Crossfader</div>
+<div class="v" data-i18n="featv3">V2164 U_CLIP_V · dry/wet</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk4">CV input</div>
+<div class="v" data-i18n="featv4">0–5V · 100kΩ series</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk5">Series R</div>
+<div class="v" data-i18n="featv5">2.2kΩ threshold set</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk6">Routing</div>
+<div class="v" data-i18n="featv6">SW1=MAIN or SW1=LOOP</div>
+</div>
+</div>
+<div class="feat-expand" id="fe-1">
+<div class="feat-spec">
+<div class="k" data-i18n="featk7">Chip</div>
+<div class="v" data-i18n="featv7">SSI2144 (Sound Semiconductor)</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk8">Slope</div>
+<div class="v" data-i18n="featv8">24dB/oct lowpass ladder</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk9">V/Oct</div>
+<div class="v" data-i18n="featv9">TL072 summer + AB501 fix</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk10">Resonance</div>
+<div class="v" data-i18n="featv10">Panel Q + 3296W trimmer</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk11">Format</div>
+<div class="v" data-i18n="featv11">SSOP-16 daughterboard</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk12">Routing</div>
+<div class="v" data-i18n="featv12">SW2=MAIN or SW2=LOOP</div>
+</div>
+</div>
+<div class="feat-expand" id="fe-2">
+<div class="feat-spec">
+<div class="k" data-i18n="featk13">Logic IC</div>
+<div class="v" data-i18n="featv13">74HC74 T-Flip-Flop</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk14">Debounce</div>
+<div class="v" data-i18n="featv14">74HC14 Schmitt</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk15">CV trigger</div>
+<div class="v" data-i18n="featv15">0–5V · BAT54S clamp</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk16">Reset</div>
+<div class="v" data-i18n="featv16">RC 10kΩ+1µF power-on</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk17">Indication</div>
+<div class="v" data-i18n="featv17">Bicolour LED per switch</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk18">Configs</div>
+<div class="v" data-i18n="featv18">4 routing combinations</div>
+</div>
+</div>
+<div class="feat-expand" id="fe-3">
+<div class="feat-spec">
+<div class="k" data-i18n="featk19">Channels</div>
+<div class="v" data-i18n="featv19">Stereo L + R</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk20">Position</div>
+<div class="v" data-i18n="featv20">After LP/HP, before Xfader</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk21">Crossfader</div>
+<div class="v" data-i18n="featv21">V2164 Aux · dry/wet</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk22">Return buffer</div>
+<div class="v" data-i18n="featv22">OPA2134 unity gain</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk23">Normalling</div>
+<div class="v" data-i18n="featv23">Ring-norm to dry</div>
+</div>
+<div class="feat-spec">
+<div class="k" data-i18n="featk24">Use</div>
+<div class="v" data-i18n="featv24">Delay · Reverb · Pitch in loop</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ══ USE CASES ══ -->
+<section class="section" id="usecases">
+<div class="container">
+<div class="sec-label fade-in" data-i18n="use_label">Sound</div>
+<h2 class="fade-in" data-i18n="use_h2">Patch ideas</h2>
+<div class="patches fade-in">
+<div class="patch">
+<div class="patch-num">// 01</div>
+<h3 data-i18n="patch_h31">Feedback Destruction</h3>
+<p data-i18n="patch_p1">Both Clipper and Filter in LOOP. Crank feedback level until the loop sustains. Shape resonant frequency with filter cutoff. From harmonic saturation to white-noise chaos.</p>
+<div class="patch-signal">SW1=LOOP · SW2=LOOP · Q↑ · FEED→wet</div>
+<div class="patch-bg">01</div>
+</div>
+<div class="patch">
+<div class="patch-num">// 02</div>
+<h3 data-i18n="patch_h32">Serial Drive+Filter</h3>
+<p data-i18n="patch_p2">Classic distortion-into-filter. Clipper in MAIN, Filter in MAIN. V/Oct pitch-tracked filter sweeps over driven bass or leads. Warm and musical.</p>
+<div class="patch-signal">SW1=MAIN · SW2=MAIN · V/Oct → seq</div>
+<div class="patch-bg">02</div>
+</div>
+<div class="patch">
+<div class="patch-num">// 03</div>
+<h3 data-i18n="patch_h33">Delay Loop Degradation</h3>
+<p data-i18n="patch_p3">Insert a delay via Send/Return. Each loop iteration gets clipped and filtered. Echoes degrade into harmonic fog over time. Phase controls tonal character.</p>
+<div class="patch-signal">Send→Delay→Return · SW1=LOOP · PHASE⟳</div>
+<div class="patch-bg">03</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ══ STORY ══ -->
+<section class="section" id="story">
+<div class="container">
+<div class="sec-label fade-in" data-i18n="story_label">Development</div>
+<h2 class="fade-in" data-i18n="story_h2">Build journal</h2>
+<div class="story-layout fade-in">
+<div class="story-timeline">
+<div class="story-step">
+<div class="story-step-num">S01–S10</div>
+<div class="story-step-title" data-i18n="story_step1">Core signal path</div>
+</div>
+<div class="story-step">
+<div class="story-step-num">S11–S30</div>
+<div class="story-step-title" data-i18n="story_step2">Filter &amp; routing</div>
+</div>
+<div class="story-step">
+<div class="story-step-num">S47–S66</div>
+<div class="story-step-title" data-i18n="story_step3">Clipper &amp; stability</div>
+</div>
+<div class="story-step">
+<div class="story-step-num">S67–S88</div>
+<div class="story-step-title" data-i18n="story_step4">V2164 crossfaders</div>
+</div>
+<div class="story-step">
+<div class="story-step-num">Now</div>
+<div class="story-step-title" data-i18n="story_step5">PCB layout</div>
+</div>
+</div>
+<div class="story-content">
+<div class="story-entry">
+<h3 data-i18n="story_h31">It started as a simple feedback loop</h3>
+<p data-i18n="story_p1">The idea was straightforward: a stereo feedback processor where you could route things into the loop and control what happens inside it. A diode clipper for harmonic saturation. A 24dB SSI2144 filter for tonal shaping.</p>
+<p data-i18n="story_p2">Then came the question: should the clipper be before or inside the loop? The answer was: both, switchable in real time.</p>
+<div class="story-code" data-i18n="story_code1">// SW1: Clipper → MAIN path or LOOP path
+                                // SW2: SSI2144 → MAIN path or LOOP path
+                                // 74HC74 T-FF + 74HC14 debounce + CV trigger
+</div>
+</div>
+<div class="story-entry">
+<h3 data-i18n="story_h32">Session 66: ERC reached zero</h3>
+<p data-i18n="story_p3">After 66 design sessions — hundreds of schematic edits, ERC cycles, and specification documents — the schematic hit zero errors. 337 components, stereo throughout, fully documented.</p>
+<p data-i18n="story_p4">The V2164 crossfaders replaced the original passive-pot topology. True VCA-based dry/wet with CV control for both the feedback path and the clipper. Four 3296W Bourns trimmers for L/R balance calibration.</p>
+<div class="story-code" data-i18n="story_code2">// BOM: 337 components
+                                // ERC: 0 errors · 21 warnings (lib mismatch, irreducible)
+                                // Status: ready for PCB layout
+</div>
+</div>
+<div class="story-entry">
+<h3 data-i18n="story_h33">Now: PCB layout</h3>
+<p data-i18n="story_p5">The schematic is frozen. PCB layout is next — 22HP board, placement zones defined for each functional block. First Rev.1 PCB order to JLCPCB planned after layout and DRC verification.</p>
+<p data-i18n="story_p6">If you want to be notified when the first units are ready, leave your email below.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ══ SPECS ══ -->
+<section class="section" id="specs">
+<div class="container">
+<div class="sec-label fade-in" data-i18n="spec_label">Technical</div>
+<h2 class="fade-in" data-i18n="spec_h2">Specifications</h2>
+<div class="specs-layout fade-in">
+<div>
+<p class="spec-section" data-i18n="spec_sec1">Format</p>
+<table class="spec-table">
+<tr>
+<td data-i18n="spectd1">Standard</td>
+<td data-i18n="spectd2">Eurorack 3U</td>
+</tr>
+<tr>
+<td data-i18n="spectd3">Width</td>
+<td data-i18n="spectd4">14 HP (71.12mm)</td>
+</tr>
+<tr>
+<td data-i18n="spectd5">Depth</td>
+<td data-i18n="spectd6">~35mm (TBD after PCB)</td>
+</tr>
+<tr>
+<td data-i18n="spectd7">Power</td>
+<td data-i18n="spectd8">±12V, +5V (16-pin)</td>
+</tr>
+<tr>
+<td data-i18n="spectd9">+5V draw</td>
+<td data-i18n="spectd10">~20mA (logic)</td>
+</tr>
+<tr>
+<td data-i18n="spectd11">BOM</td>
+<td data-i18n="spectd12">337 components</td>
+</tr>
+<tr>
+<td data-i18n="spectd13">Status</td>
+<td data-i18n="spectd14">Pre-PCB · ERC 0</td>
+</tr>
+</table>
+<p class="spec-section" data-i18n="spec_sec2">Key ICs</p>
+<table class="spec-table">
+<tr>
+<td data-i18n="spectd15">Filter</td>
+<td data-i18n="spectd16">SSI2144 × 2 (stereo)</td>
+</tr>
+<tr>
+<td data-i18n="spectd17">Drive VCA</td>
+<td data-i18n="spectd18">THAT2181 × 2</td>
+</tr>
+<tr>
+<td data-i18n="spectd19">Crossfaders</td>
+<td data-i18n="spectd20">SSI2164 (V2164) × 2</td>
+</tr>
+<tr>
+<td data-i18n="spectd21">FB Filters</td>
+<td data-i18n="spectd22">LM13700 OTA × 2</td>
+</tr>
+<tr>
+<td data-i18n="spectd23">Op-amps</td>
+<td data-i18n="spectd24">LM4562 · OPA2134 · TL072</td>
+</tr>
+<tr>
+<td data-i18n="spectd25">Logic</td>
+<td data-i18n="spectd26">74HC74 · 74HC14</td>
+</tr>
+<tr>
+<td data-i18n="spectd27">Clipper</td>
+<td data-i18n="spectd28">DIP-8 socket (swappable)</td>
+</tr>
+</table>
+</div>
+<div>
+<p class="spec-section" data-i18n="spec_sec3">I/O</p>
+<div class="io-list">
+<div class="io-item">
+<div class="io-dot" style="background:#00e5ff"></div>
+<span class="io-name" data-i18n="io1">In L/R</span>
+<span class="io-type">audio in</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#00e5ff"></div>
+<span class="io-name" data-i18n="io2">Out L/R</span>
+<span class="io-type">audio out</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#ff5a78"></div>
+<span class="io-name" data-i18n="io3">Send L/R</span>
+<span class="io-type">loop out</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#ff5a78"></div>
+<span class="io-name" data-i18n="io4">Return L/R</span>
+<span class="io-type">loop in</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#ffb347"></div>
+<span class="io-name" data-i18n="io5">Diode CV</span>
+<span class="io-type">0–5V</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#00e5b4"></div>
+<span class="io-name" data-i18n="io6">Freq CV</span>
+<span class="io-type">1V/oct</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#8c64dc"></div>
+<span class="io-name" data-i18n="io7">LP / HP CV</span>
+<span class="io-type">filter CV</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#8c64dc"></div>
+<span class="io-name" data-i18n="io8">V/Oct</span>
+<span class="io-type">pitch track</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#00a0ff"></div>
+<span class="io-name" data-i18n="io9">Aux CV</span>
+<span class="io-type">S/R dry/wet</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#aa66ff"></div>
+<span class="io-name" data-i18n="io10">Phase CV</span>
+<span class="io-type">attenuverter</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#44ff88"></div>
+<span class="io-name" data-i18n="io11">SW1 CV</span>
+<span class="io-type">trig 0–5V</span>
+</div>
+<div class="io-item">
+<div class="io-dot" style="background:#44ff88"></div>
+<span class="io-name" data-i18n="io12">SW2 CV</span>
+<span class="io-type">trig 0–5V</span>
+</div>
+</div>
+<p class="spec-section" data-i18n="spec_sec4">Panel Controls</p>
+<table class="spec-table">
+<tr>
+<td data-i18n="spectd29">DIODE</td>
+<td data-i18n="spectd30">Drive amount (THAT2181)</td>
+</tr>
+<tr>
+<td data-i18n="spectd31">FEED D/W</td>
+<td data-i18n="spectd32">Feedback depth (V2164)</td>
+</tr>
+<tr>
+<td data-i18n="spectd33">AUX D/W</td>
+<td data-i18n="spectd34">Send/Return mix (V2164)</td>
+</tr>
+<tr>
+<td data-i18n="spectd35">PHASE</td>
+<td data-i18n="spectd36">Phase invert (attenuverter)</td>
+</tr>
+<tr>
+<td data-i18n="spectd37">Q</td>
+<td data-i18n="spectd38">Filter resonance + trim</td>
+</tr>
+<tr>
+<td data-i18n="spectd39">FREQ</td>
+<td data-i18n="spectd40">Filter cutoff</td>
+</tr>
+<tr>
+<td data-i18n="spectd41">LP / HP</td>
+<td data-i18n="spectd42">FB filter cutoff (LM13700)</td>
+</tr>
+<tr>
+<td data-i18n="spectd43">FILT DRV</td>
+<td data-i18n="spectd44">SSI2144 input level</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</section>
+<!-- ══ PREORDER ══ -->
+<section class="section" id="preorder">
+<div class="container">
+<div class="sec-label fade-in" style="justify-content:center">Early Access</div>
+<h2 class="fade-in" data-i18n="pre_h2" style="text-align:center">Get notified</h2>
+<p class="lead fade-in" data-i18n="pre_lead" style="text-align:center;color:var(--muted);margin-bottom:2.5rem">First batch is limited. Leave your email and we'll reach out when Rev.1 is ready.</p>
+<form class="preorder-form fade-in" onsubmit="handleSignup(event)">
+<input data-i18n-placeholder="pre_placeholder" id="signup-email" placeholder="your@email.com" required="" type="email"/>
+<button class="btn btn-primary" data-i18n="pre_btn" type="submit">Notify Me</button>
+</form>
+<div class="preorder-nums fade-in">
+<div>
+<div class="pn-num">ERC 0</div>
+<div class="pn-label" data-i18n="pn1">Schematic clean</div>
+</div>
+<div>
+<div class="pn-num">337</div>
+<div class="pn-label" data-i18n="pn2">BOM components</div>
+</div>
+<div>
+<div class="pn-num">14HP</div>
+<div class="pn-label" data-i18n="pn3">Panel width</div>
+</div>
+<div>
+<div class="pn-num">Rev.1</div>
+<div class="pn-label" data-i18n="pn4">PCB status</div>
+</div>
+</div>
+</div>
+</section>
+<footer data-i18n="footer_main">
+<div style="font-family:var(--mono);font-size:0.7rem;color:var(--cyan);opacity:0.6">Feedback Loop</div>
+<div>Eurorack · 14 HP · ±12V · Stereo</div>
+<div>© 2026</div>
+</footer>
+<script>
+// ══ MOBILE MENU ══
+function toggleMenu() {
+  const links = document.getElementById('nav-links');
+  const btn = document.getElementById('nav-burger');
+  const open = links.classList.toggle('open');
+  btn.textContent = open ? 'CLOSE' : 'MENU';
+}
+function closeMenu() {
+  document.getElementById('nav-links').classList.remove('open');
+  document.getElementById('nav-burger').textContent = currentLang==='ru' ? 'МЕНЮ' : 'MENU';
+}
+
+// ══ TWEAKS ══
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "green",
+  "density": "normal",
+  "anim": "on"
+}/*EDITMODE-END*/;
+let tweaks = Object.assign({}, TWEAK_DEFAULTS);
+try { Object.assign(tweaks, JSON.parse(localStorage.getItem('fl2-tweaks')||'{}')); } catch(e){}
+
+function applyTweaks() {
+  const accents = { cyan:'#00e5ff', green:'#44ff88', violet:'#aa66ff' };
+  document.documentElement.style.setProperty('--cyan', accents[tweaks.accent] || accents.cyan);
+  document.documentElement.style.setProperty('--cyan2', accents[tweaks.accent] || accents.cyan);
+  document.querySelectorAll('.tweak-opt').forEach(b => b.classList.toggle('selected', tweaks[b.dataset.key] === b.dataset.val));
+  localStorage.setItem('fl2-tweaks', JSON.stringify(tweaks));
+  if (tweaks.anim === 'off') {
+    document.querySelectorAll('#hero-canvas').forEach(c => c.style.opacity='0');
+  }
+}
+function setT(k, v, btn) {
+  tweaks[k] = v; applyTweaks();
+  window.parent.postMessage({ type:'__edit_mode_set_keys', edits: tweaks },'*');
+}
+window.addEventListener('message', e => {
+  if (e.data?.type==='__activate_edit_mode') document.getElementById('tweaks-panel').classList.add('visible');
+  else if (e.data?.type==='__deactivate_edit_mode') document.getElementById('tweaks-panel').classList.remove('visible');
+});
+window.parent.postMessage({ type:'__edit_mode_available' },'*');
+applyTweaks();
+applyLanguage();
+
+// ══ HERO CANVAS — oscilloscope signal animation ══
+(function() {
+  const canvas = document.getElementById('hero-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, t = 0;
+  const signals = [
+    { freq: 0.8, amp: 0.12, speed: 0.4, phase: 0, color: 'rgba(0,229,255,0.18)', w: 2 },
+    { freq: 1.6, amp: 0.07, speed: 0.7, phase: 1.2, color: 'rgba(0,229,255,0.1)', w: 1.2 },
+    { freq: 0.5, amp: 0.16, speed: 0.25, phase: 2.1, color: 'rgba(255,179,71,0.12)', w: 1.5 },
+    { freq: 2.2, amp: 0.04, speed: 1.1, phase: 0.7, color: 'rgba(170,102,255,0.08)', w: 1 },
+    { freq: 1.1, amp: 0.09, speed: 0.55, phase: 3.4, color: 'rgba(0,229,255,0.06)', w: 0.8 },
+  ];
+
+  const isMobile = window.innerWidth < 680 || ('ontouchstart' in window);
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function drawSignal(s, yBase) {
+    ctx.beginPath();
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.w;
+    for (let x = 0; x <= W; x += 2) {
+      const nx = x / W;
+      // Clipped feedback-style waveform
+      let raw = Math.sin(nx * Math.PI * 2 * s.freq * 3 + t * s.speed + s.phase);
+      // Add harmonics to simulate feedback
+      raw += 0.4 * Math.sin(nx * Math.PI * 2 * s.freq * 6 + t * s.speed * 1.3 + s.phase);
+      raw += 0.15 * Math.sin(nx * Math.PI * 2 * s.freq * 12 + t * s.speed * 0.9 + s.phase);
+      // Soft clip
+      raw = Math.tanh(raw * 1.2) * 0.85;
+      const y = yBase + raw * H * s.amp;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    if (tweaks.anim === 'off') return;
+    t += 0.016;
+    const yPositions = [H*0.3, H*0.42, H*0.5, H*0.58, H*0.7];
+    (isMobile ? signals.slice(0,2) : signals).forEach((s, i) => drawSignal(s, yPositions[i]));
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+// ══ FLOW DESCRIPTIONS ══
+const flowData = {
+  'io': { title:'Audio I/O', body:'Stereo 3.5mm jacks. IN L/R → input buffers. OUT L/R → output of V2164 Feedback Crossfader via OPA2134 summing amps.' },
+  'in-buf': { title:'Input Buffer — LM4562 × 2', body:'High-quality dual op-amp input stage. Low noise, high slew rate. Taps DRY_AC directly for the feedback crossfader. Input impedance ~100kΩ.' },
+  'xfader': { title:'V2164 Feedback Crossfader — U_XFADE_V', body:'SSI2164 quad VCA blends DRY_AC (from input buffer) with PHASE_OUT (feedback loop return). Controlled by FEED D/W pot + FEEDBACK_CV. In SW3=SERIES mode: WET input is silent, so FEED D/W becomes an input volume/ducker — 100% WET = full input ducking.' },
+  'clipper': { title:'Diode Clipper — DIP-8 Socket', body:'Passive shunt clipping via DIP-8 IC socket. Swap any diode pair — germanium, silicon, LEDs, zeners. THAT2181 × 2 Drive VCA controls input gain. SW1: MAIN or LOOP. V2164 U_CLIP_V blends dry/wet.' },
+  'ssi2144': { title:'SSI2144 24dB/oct Lowpass — U8_L/U8_R', body:'Sound Semiconductor SSI2144 ladder filter on swappable SSOP-16 daughterboard. V/Oct tracking via TL072 summer + AB501 sub-audio clamp. Panel Q + Bourns 3296W trim. SW2: MAIN or LOOP.' },
+  'sendret': { title:'Send / Return — V2164 Aux Crossfader', body:'Stereo insert point. In LOOP mode: insert is inside the feedback path. In SW3=SERIES mode: SEND receives the full processed signal (Xfader→Clipper→SSI), external FX Return continues into LP/HP→Phase→OUT. The entire chain runs in sequence without feedback.' },
+  'fb-filters': { title:'LM13700 HP/LP OTA Filters', body:'Two 1-pole OTA filters in the feedback path for stability control. LM13700 transconductance amp. Attenuverter CV inputs. LP tames HF runaway; HP removes DC buildup.' },
+  'phase': { title:'Phase Inverter — TL072 × 4', body:'CV-controlled attenuverter. Varies between +100% (in-phase) and −100% (inverted). Center = null. Smooth zero-crossing. In LOOP mode: blue return = negative feedback (stabilising), purple = positive (reinforcing). In SW3=SERIES mode: Phase output goes directly to OUT — last stage of the linear chain.' }
+};
+
+function showFlow(key) {
+  window.__lastFlowKey = key;
+  const d = currentLang==='ru' && FLOW_RU[key] ? FLOW_RU[key] : flowData[key];
+  const el = document.getElementById('flow-desc');
+  if (!el) return;
+  if (!d) { el.innerHTML = I18N.flow_default[currentLang] || I18N.flow_default.en; return; }
+  el.innerHTML = '<h4>' + d.title + '</h4><p>' + d.body + '</p>';
+}
+
+// ══ SW TOGGLES ══
+let sw1 = false, sw2 = false, sw3 = false;
+
+function toggleSW(n) {
+  if (n===1) {
+    sw1 = !sw1;
+    document.getElementById('sw1-lbl').textContent = sw1?'LOOP':'MAIN';
+    document.getElementById('btn-sw1').classList.toggle('active', sw1);
+    const mc = document.getElementById('fblk-main-clip');
+    const lc = document.getElementById('fblk-loop-clip');
+    if (mc) mc.style.opacity = sw1?'0.25':'1';
+    if (lc) lc.style.opacity = sw1?'1':'0.25';
+  } else if (n===2) {
+    sw2 = !sw2;
+    document.getElementById('sw2-lbl').textContent = sw2?'LOOP':'MAIN';
+    document.getElementById('btn-sw2').classList.toggle('active', sw2);
+    const ms = document.getElementById('fblk-main-ssi');
+    const ls = document.getElementById('fblk-loop-ssi');
+    if (ms) ms.style.opacity = sw2?'0.25':'1';
+    if (ls) ls.style.opacity = sw2?'1':'0.25';
+  } else {
+    sw3 = !sw3;
+    document.getElementById('sw3-lbl').textContent = sw3?'SERIES':'LOOP';
+    document.getElementById('btn-sw3').classList.toggle('active', sw3);
+  }
+  updateRoutingPaths();
+  updatePanelSWLeds();
+}
+
+function updateRoutingPaths() {
+  const toLoop = document.getElementById('flow-to-loop');
+  const ret = document.getElementById('flow-ph-return');
+  const seriesPhOut = document.getElementById('flow-series-ph-out');
+  const seriesOutLbl = document.getElementById('flow-series-out-lbl');
+  const seriesChainLbl = document.getElementById('flow-series-chain-lbl');
+  const seriesModeLbl = document.getElementById('flow-series-mode-lbl');
+  const loopLabel = document.querySelector('#flow-svg text[y="14"]:not(#flow-series-mode-lbl)');
+
+  if (sw3) {
+    // SERIES mode: Phase→OUT directly, Xfader→SEND, no feedback
+    if (toLoop) { toLoop.style.opacity = '0.08'; toLoop.style.strokeDasharray = '3,8'; }
+    if (ret) { ret.style.display = 'none'; }
+    if (seriesPhOut) { seriesPhOut.style.display = ''; seriesPhOut.style.opacity = '0.9'; }
+    if (seriesOutLbl) seriesOutLbl.style.display = '';
+    if (seriesChainLbl) seriesChainLbl.style.display = '';
+    if (seriesModeLbl) seriesModeLbl.style.display = '';
+  } else {
+    // LOOP mode: restore normal feedback paths
+    const loopActive = sw1 || sw2;
+    if (toLoop) { toLoop.style.opacity = loopActive?'0.8':'0.15'; toLoop.style.strokeDasharray = '5,3'; }
+    if (ret) { ret.style.display = ''; ret.style.opacity = loopActive?'0.6':'0.15'; }
+    if (seriesPhOut) { seriesPhOut.style.display = 'none'; }
+    if (seriesOutLbl) seriesOutLbl.style.display = 'none';
+    if (seriesChainLbl) seriesChainLbl.style.display = 'none';
+    if (seriesModeLbl) seriesModeLbl.style.display = 'none';
+  }
+}
+
+function updatePanelSWLeds() {
+  const l1 = document.getElementById('psw1-led'), l2 = document.getElementById('psw1-led2');
+  const r1 = document.querySelector('#panel-sw1 rect');
+  if (l1) { l1.style.fill = sw1?'#44ff88':'#1E8840'; l1.style.opacity = sw1?'0.7':'0.35'; }
+  if (l2) { l2.style.fill = sw1?'#aaffcc':'#ff5a78'; l2.style.opacity = sw1?'0.8':'0.5'; }
+  if (r1) r1.style.stroke = sw1?'rgba(68,255,136,0.7)':'rgba(255,90,120,0.5)';
+  const l3 = document.getElementById('psw2-led'), l4 = document.getElementById('psw2-led2');
+  const r2 = document.querySelector('#panel-sw2 rect');
+  if (l3) { l3.style.fill = sw2?'#aa66ff':'#6E24A0'; l3.style.opacity = sw2?'0.7':'0.35'; }
+  if (l4) { l4.style.fill = sw2?'#ddaaff':'#ffb347'; l4.style.opacity = sw2?'0.8':'0.5'; }
+  if (r2) r2.style.stroke = sw2?'rgba(170,102,255,0.7)':'rgba(255,179,71,0.5)';
+  const l5 = document.getElementById('psw3-led'), l6 = document.getElementById('psw3-led2');
+  const r3 = document.querySelector('#panel-sw3 rect');
+  if (l5) { l5.style.fill = sw3?'#ffb347':'#604010'; l5.style.opacity = sw3?'0.75':'0.35'; }
+  if (l6) { l6.style.fill = sw3?'#ffe0a0':'#ffb347'; l6.style.opacity = sw3?'0.85':'0.3'; }
+  if (r3) r3.style.stroke = sw3?'rgba(255,179,71,0.8)':'rgba(255,179,71,0.35)';
+}
+
+toggleSW(1); toggleSW(2);
+
+// ══ PANEL KNOBS ══
+(function() {
+  const CIRC = 86, TRAVEL = 64.5;
+
+  const glow = (ids, r,g,b, v) => ids.forEach(id => {
+    const el = document.getElementById(id); if(!el) return;
+    const i = v/100;
+    el.style.filter = i > 0.05 ? `drop-shadow(0 0 ${3+i*14}px rgba(${r},${g},${b},${0.15+i*0.6}))` : '';
+  });
+
+  const effects = {
+    'drive-glow': v => { glow(['fblk-loop-clip','fblk-main-clip'], 255,90,120, v); },
+    'feed-glow': v => {
+      const i=v/100; glow(['fblk-main-xf'], 255,179,71, v);
+      const p=document.getElementById('flow-to-loop');
+      if(p){p.style.stroke=`rgba(255,179,71,${0.4+i*0.5})`;p.style.strokeWidth=1.5+i*1.5;}
+      const r=document.getElementById('flow-ph-return');
+      if(r) r.style.opacity=String(0.3+i*0.5);
+    },
+    'aux-glow': v => { glow(['fblk-loop-sr'], 0,160,255, v); },
+    'phase-glow': v => {
+      glow(['fblk-loop-phase'], 170,102,255, v);
+      const dist = Math.abs(v-50)/50;
+      const ret = document.getElementById('flow-ph-return');
+      const txt = document.getElementById('flow-ph-txt');
+      if(!ret) return;
+      ret.style.opacity = String(0.08+dist*0.82);
+      ret.style.strokeWidth = 1.3+dist*1.8;
+      if(v<44){ret.setAttribute('stroke','#4488ff');if(txt){txt.setAttribute('fill','rgba(68,136,255,0.6)');txt.textContent='negative · stabilising';}}
+      else if(v>56){ret.setAttribute('stroke','rgba(170,102,255,0.8)');if(txt){txt.setAttribute('fill','rgba(170,102,255,0.6)');txt.textContent='positive · reinforcing';}}
+      else{ret.setAttribute('stroke','rgba(80,40,120,0.5)');if(txt){txt.setAttribute('fill','rgba(80,40,120,0.5)');txt.textContent='null · loop open';}}
+    },
+    'q-glow': v => {
+      const i=v/100;
+      ['fblk-loop-ssi','fblk-main-ssi'].forEach(id=>{
+        const el=document.getElementById(id);if(!el)return;
+        const rect=el.querySelector('rect');
+        if(rect)rect.style.stroke=`rgba(140,100,220,${0.3+i*0.65})`;
+        if(el.style.opacity!=='0.25') el.style.opacity=String(1-i*0.35);
+      });
+    },
+    'filter-glow': v => { glow(['fblk-loop-ssi','fblk-main-ssi'], 0,229,180, v); },
+    'filtdrive-glow': v => { glow(['fblk-loop-ssi','fblk-main-ssi'], 100,200,80, v); },
+    'lp-glow': v => { glow(['fblk-loop-ota'], 140,100,220, v); },
+    'hp-glow': v => {
+      const el=document.getElementById('fblk-loop-ota');if(!el)return;
+      const r=el.querySelector('rect');if(r)r.style.strokeWidth=1+v/100*2.5;
+    }
+  };
+
+  function updateKnob(k, val) {
+    val = Math.max(0, Math.min(100, val));
+    k.dataset.val = val;
+    const arc = k.querySelector('.pk-arc');
+    const needle = k.querySelector('.pk-needle');
+    if(arc){const f=(val/100)*TRAVEL;arc.setAttribute('stroke-dasharray',`${f} ${CIRC}`);}
+    if(needle){const a=-135+(val/100)*270;needle.setAttribute('transform',`rotate(${a})`);}
+    const t=k.dataset.target;
+    if(t&&effects[t]) effects[t](val);
+  }
+
+  document.querySelectorAll('.panel-knob').forEach(k => {
+    updateKnob(k, parseInt(k.dataset.val)||0);
+    let sy=0, sv=0;
+    const start = e => {
+      e.preventDefault();
+      sy = e.touches?e.touches[0].clientY:e.clientY;
+      sv = parseInt(k.dataset.val);
+      k.classList.add('dragging');
+      const move = e2 => { const y=e2.touches?e2.touches[0].clientY:e2.clientY; updateKnob(k, sv+Math.round((sy-y)*0.9)); };
+      const end = () => { k.classList.remove('dragging'); document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',end); document.removeEventListener('touchmove',move); document.removeEventListener('touchend',end); };
+      document.addEventListener('mousemove',move);
+      document.addEventListener('mouseup',end);
+      document.addEventListener('touchmove',move,{passive:false});
+      document.addEventListener('touchend',end);
+    };
+    k.addEventListener('mousedown',start);
+    k.addEventListener('touchstart',start,{passive:false});
+  });
+})();
+
+// ══ FEATURES ══
+let openFeat = null;
+function toggleFeat(i) {
+  const el = document.getElementById('fe-'+i);
+  if(!el) return;
+  if(openFeat===i){el.classList.remove('show');document.querySelectorAll('.feat')[i]?.classList.remove('open');openFeat=null;}
+  else{
+    document.querySelectorAll('.feat-expand').forEach(e=>e.classList.remove('show'));
+    document.querySelectorAll('.feat').forEach(e=>e.classList.remove('open'));
+    el.classList.add('show');
+    document.querySelectorAll('.feat')[i]?.classList.add('open');
+    openFeat=i;
+  }
+}
+
+// ══ PREORDER ══
+function handleSignup(e) {
+  e.preventDefault();
+  const email = document.getElementById('signup-email').value;
+  e.target.innerHTML = '<p style="color:var(--cyan);font-family:var(--mono);font-size:0.8rem">✓ Registered: '+email+'</p>';
+}
+
+// ══ SCROLL FADE ══
+const obs = new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');}),{threshold:0.1});
+document.querySelectorAll('.fade-in').forEach(el=>obs.observe(el));
+</script>
+
+<script>
+const I18N = {"nav_signal": {"en": "Signal", "ru": "Сигнал", "attr": "textContent"}, "nav_features": {"en": "Features", "ru": "Возможности", "attr": "textContent"}, "nav_story": {"en": "Story", "ru": "История", "attr": "textContent"}, "nav_specs": {"en": "Specs", "ru": "Спецификация", "attr": "textContent"}, "nav_preorder": {"en": "Preorder", "ru": "Предзаказ", "attr": "textContent"}, "nav_menu": {"en": "MENU", "ru": "МЕНЮ", "attr": "textContent"}, "tw_title": {"en": "Tweaks", "ru": "Настройки", "attr": "textContent"}, "tw_accent": {"en": "Accent", "ru": "Акцент", "attr": "textContent"}, "tw_density": {"en": "Density", "ru": "Плотность", "attr": "textContent"}, "tw_anim": {"en": "Signal anim", "ru": "Анимация сигнала", "attr": "textContent"}, "tw_cyan": {"en": "Cyan", "ru": "Cyan", "attr": "textContent"}, "tw_green": {"en": "Green", "ru": "Green", "attr": "textContent"}, "tw_violet": {"en": "Violet", "ru": "Violet", "attr": "textContent"}, "tw_normal": {"en": "Normal", "ru": "Normal", "attr": "textContent"}, "tw_compact": {"en": "Compact", "ru": "Compact", "attr": "textContent"}, "tw_on": {"en": "On", "ru": "Вкл", "attr": "textContent"}, "tw_off": {"en": "Off", "ru": "Выкл", "attr": "textContent"}, "hero_label": {"en": "Eurorack · 14 HP · Stereo Analog", "ru": "Eurorack · 14 HP · Stereo Analog", "attr": "textContent"}, "hero_sub": {"en": "A controllable stereo feedback engine.<br>Clipper, filter, phase — inside or outside the loop.", "ru": "Управляемый стерео feedback-движок.<br>Clipper, filter, phase — внутри или вне петли.", "attr": "innerHTML"}, "hero_preorder": {"en": "Preorder →", "ru": "Предзаказ →", "attr": "innerHTML"}, "hero_signal": {"en": "Signal Flow ↓", "ru": "Signal Flow ↓", "attr": "innerHTML"}, "hero_scroll": {"en": "scroll to explore ↓", "ru": "листайте вниз ↓", "attr": "textContent"}, "man_label": {"en": "What it is", "ru": "Что это", "attr": "textContent"}, "man_h2": {"en": "Sound that feeds on itself", "ru": "Звук, который питается сам собой", "attr": "textContent"}, "man_p1": {"en": "Feedback Loop is a <strong>stereo analog effects processor</strong> that puts you in control of something usually chaotic — the feedback path. Route a diode clipper and a 24dB SSI2144 filter either in the main signal chain or inside the feedback loop itself.", "ru": "Feedback Loop — это <strong>стерео аналоговый эффект-процессор</strong>, который даёт контроль над тем, что обычно считается хаосом — цепью обратной связи. Направляйте diode clipper и 24dB фильтр SSI2144 либо в основную цепь сигнала, либо внутрь самой feedback-петли.", "attr": "innerHTML"}, "man_p2": {"en": "Insert any external module via Send/Return. Shape the return with HP/LP OTA filters, a phase inverter, and a V2164 crossfader. The result: everything from subtle harmonic saturation to full self-oscillating feedback destruction.", "ru": "Подключайте любые внешние модули через Send/Return. Формируйте возврат сигнала с помощью HP/LP OTA filters, phase inverter и V2164 crossfader. Результат — от тонкой гармонической сатурации до полного самовозбуждающегося разрушения feedback-сигнала.", "attr": "innerHTML"}, "man_p3": {"en": "One switch press changes the architecture entirely.", "ru": "Одно переключение полностью меняет архитектуру сигнала.", "attr": "innerHTML"}, "stat1": {"en": "dB/oct LP filter", "ru": "LP filter, дБ/окт", "attr": "textContent"}, "stat2": {"en": "V2164 VCA cells", "ru": "ячейки V2164 VCA", "attr": "textContent"}, "stat3": {"en": "HP panel width", "ru": "ширина панели, HP", "attr": "textContent"}, "stat4": {"en": "schematic errors", "ru": "ошибки схемы", "attr": "textContent"}, "stat5": {"en": "BOM components", "ru": "компоненты BOM", "attr": "textContent"}, "stat6": {"en": "stereo channels", "ru": "стерео каналы", "attr": "textContent"}, "sig_label": {"en": "Architecture", "ru": "Архитектура", "attr": "textContent"}, "sig_h2": {"en": "Signal Flow", "ru": "Signal Flow", "attr": "textContent"}, "sig_p": {"en": "Click any block. Toggle SW1/SW2 to reroute.", "ru": "Нажмите на любой блок. Переключайте SW1/SW2, чтобы менять маршрут сигнала.", "attr": "textContent"}, "flow_default": {"en": "<p style=\"color:var(--muted);font-style:italic;font-size:0.875rem\">← Click any block to see details</p>", "ru": "<p style=\"color:var(--muted);font-style:italic;font-size:0.875rem\">← Нажмите на любой блок, чтобы увидеть детали</p>", "attr": "innerHTML"}, "feat_label": {"en": "Capabilities", "ru": "Возможности", "attr": "textContent"}, "feat_h2": {"en": "What it does", "ru": "Что он делает", "attr": "textContent"}, "feat_tag1": {"en": "Drive · Distortion", "ru": "Drive · Distortion", "attr": "textContent"}, "feat_tag2": {"en": "Filter · 24dB LP", "ru": "Filter · 24dB LP", "attr": "textContent"}, "feat_tag3": {"en": "Routing · Logic", "ru": "Маршрутизация · Логика", "attr": "textContent"}, "feat_tag4": {"en": "Insert · Send/Return", "ru": "Insert · Send/Return", "attr": "textContent"}, "feat_h31": {"en": "Diode Clipper", "ru": "Diode Clipper", "attr": "textContent"}, "feat_h32": {"en": "SSI2144 Ladder", "ru": "SSI2144 Ladder", "attr": "textContent"}, "feat_h33": {"en": "Dual SW Routing", "ru": "Двойная SW-маршрутизация", "attr": "textContent"}, "feat_h34": {"en": "Loop Insert", "ru": "Loop Insert", "attr": "textContent"}, "feat_p1": {"en": "DIP-8 socket — swap any diode pair. THAT2181 VCA controls drive level with CV. V2164 crossfader blends dry and clipped signal.", "ru": "DIP-8 socket — можно менять любую пару диодов. THAT2181 VCA управляет уровнем drive по CV. V2164 crossfader смешивает dry и clipped signal.", "attr": "innerHTML"}, "feat_p2": {"en": "Sound Semiconductor's classic ladder filter. V/Oct pitch tracking. Independent Q trimmer. Swappable SSOP-16 daughterboard. Self-oscillation capable.", "ru": "Классический ladder filter от Sound Semiconductor. Трекинг по V/Oct. Отдельный триммер Q. Сменная SSOP-16 daughterboard. Способен к самовозбуждению.", "attr": "innerHTML"}, "feat_p3": {"en": "74HC74 T-Flip-Flop. One button press moves Clipper or Filter between main path and feedback loop. CV-triggerable. Power-on reset.", "ru": "74HC74 T-Flip-Flop. Одним нажатием Clipper или Filter переносится между основной цепью и feedback-петлёй. Поддерживается CV-триггер. Есть power-on reset.", "attr": "innerHTML"}, "feat_p4": {"en": "Stereo insert point inside the feedback path. Patch external delay, reverb, or pitch modules. V2164 Aux crossfader controls blend depth.", "ru": "Стерео insert point внутри feedback-пути. Подключайте внешний delay, reverb или pitch-модули. V2164 Aux crossfader управляет глубиной подмешивания.", "attr": "innerHTML"}, "featk1": {"en": "Drive VCA", "ru": "Drive VCA", "attr": "textContent"}, "featk2": {"en": "Socket", "ru": "Socket", "attr": "textContent"}, "featk3": {"en": "Crossfader", "ru": "Crossfader", "attr": "textContent"}, "featk4": {"en": "CV input", "ru": "CV вход", "attr": "textContent"}, "featk5": {"en": "Series R", "ru": "Series R", "attr": "textContent"}, "featk6": {"en": "Routing", "ru": "Маршрутизация", "attr": "textContent"}, "featk7": {"en": "Chip", "ru": "Chip", "attr": "textContent"}, "featk8": {"en": "Slope", "ru": "Slope", "attr": "textContent"}, "featk9": {"en": "V/Oct", "ru": "V/Oct", "attr": "textContent"}, "featk10": {"en": "Resonance", "ru": "Резонанс", "attr": "textContent"}, "featk11": {"en": "Format", "ru": "Формат", "attr": "textContent"}, "featk12": {"en": "Routing", "ru": "Маршрутизация", "attr": "textContent"}, "featk13": {"en": "Logic IC", "ru": "Logic IC", "attr": "textContent"}, "featk14": {"en": "Debounce", "ru": "Debounce", "attr": "textContent"}, "featk15": {"en": "CV trigger", "ru": "CV trigger", "attr": "textContent"}, "featk16": {"en": "Reset", "ru": "Сброс", "attr": "textContent"}, "featk17": {"en": "Indication", "ru": "Индикация", "attr": "textContent"}, "featk18": {"en": "Configs", "ru": "Конфигурации", "attr": "textContent"}, "featk19": {"en": "Channels", "ru": "Каналы", "attr": "textContent"}, "featk20": {"en": "Position", "ru": "Позиция", "attr": "textContent"}, "featk21": {"en": "Crossfader", "ru": "Crossfader", "attr": "textContent"}, "featk22": {"en": "Return buffer", "ru": "Return buffer", "attr": "textContent"}, "featk23": {"en": "Normalling", "ru": "Нормализация", "attr": "textContent"}, "featk24": {"en": "Use", "ru": "Применение", "attr": "textContent"}, "featv1": {"en": "THAT2181 × 2 (stereo)", "ru": "THAT2181 × 2 (stereo)", "attr": "textContent"}, "featv2": {"en": "DIP-8 · passive shunt", "ru": "DIP-8 · пассивный shunt", "attr": "textContent"}, "featv3": {"en": "V2164 U_CLIP_V · dry/wet", "ru": "V2164 U_CLIP_V · dry/wet", "attr": "textContent"}, "featv4": {"en": "0–5V · 100kΩ series", "ru": "0–5V · серия 100kΩ", "attr": "textContent"}, "featv5": {"en": "2.2kΩ threshold set", "ru": "порог задаёт 2.2kΩ", "attr": "textContent"}, "featv6": {"en": "SW1=MAIN or SW1=LOOP", "ru": "SW1=MAIN или SW1=LOOP", "attr": "textContent"}, "featv7": {"en": "SSI2144 (Sound Semiconductor)", "ru": "SSI2144 (Sound Semiconductor)", "attr": "textContent"}, "featv8": {"en": "24dB/oct lowpass ladder", "ru": "24dB/oct lowpass ladder", "attr": "textContent"}, "featv9": {"en": "TL072 summer + AB501 fix", "ru": "TL072 summer + AB501 fix", "attr": "textContent"}, "featv10": {"en": "Panel Q + 3296W trimmer", "ru": "Panel Q + 3296W trimmer", "attr": "textContent"}, "featv11": {"en": "SSOP-16 daughterboard", "ru": "SSOP-16 daughterboard", "attr": "textContent"}, "featv12": {"en": "SW2=MAIN or SW2=LOOP", "ru": "SW2=MAIN или SW2=LOOP", "attr": "textContent"}, "featv13": {"en": "74HC74 T-Flip-Flop", "ru": "74HC74 T-Flip-Flop", "attr": "textContent"}, "featv14": {"en": "74HC14 Schmitt", "ru": "74HC14 Schmitt", "attr": "textContent"}, "featv15": {"en": "0–5V · BAT54S clamp", "ru": "0–5V · BAT54S clamp", "attr": "textContent"}, "featv16": {"en": "RC 10kΩ+1µF power-on", "ru": "RC 10kΩ+1µF при включении", "attr": "textContent"}, "featv17": {"en": "Bicolour LED per switch", "ru": "двухцветный LED на переключатель", "attr": "textContent"}, "featv18": {"en": "4 routing combinations", "ru": "4 комбинации маршрутизации", "attr": "textContent"}, "featv19": {"en": "Stereo L + R", "ru": "Stereo L + R", "attr": "textContent"}, "featv20": {"en": "After LP/HP, before Xfader", "ru": "после LP/HP, перед Xfader", "attr": "textContent"}, "featv21": {"en": "V2164 Aux · dry/wet", "ru": "V2164 Aux · dry/wet", "attr": "textContent"}, "featv22": {"en": "OPA2134 unity gain", "ru": "OPA2134 unity gain", "attr": "textContent"}, "featv23": {"en": "Ring-norm to dry", "ru": "ring-norm в dry", "attr": "textContent"}, "featv24": {"en": "Delay · Reverb · Pitch in loop", "ru": "delay · reverb · pitch в петле", "attr": "textContent"}, "use_label": {"en": "Sound", "ru": "Звук", "attr": "textContent"}, "use_h2": {"en": "Patch ideas", "ru": "Идеи для патчей", "attr": "textContent"}, "patch_h31": {"en": "Feedback Destruction", "ru": "Feedback Destruction", "attr": "textContent"}, "patch_h32": {"en": "Serial Drive+Filter", "ru": "Серийный Drive+Filter", "attr": "textContent"}, "patch_h33": {"en": "Delay Loop Degradation", "ru": "Деградация delay-петли", "attr": "textContent"}, "patch_p1": {"en": "Both Clipper and Filter in LOOP. Crank feedback level until the loop sustains. Shape resonant frequency with filter cutoff. From harmonic saturation to white-noise chaos.", "ru": "И Clipper, и Filter находятся в LOOP. Поднимайте уровень feedback, пока петля не начнёт самоподдерживаться. Формируйте резонансную частоту cutoff-ом фильтра. От гармонической сатурации до хаоса белого шума.", "attr": "innerHTML"}, "patch_p2": {"en": "Classic distortion-into-filter. Clipper in MAIN, Filter in MAIN. V/Oct pitch-tracked filter sweeps over driven bass or leads. Warm and musical.", "ru": "Классическая схема distortion-into-filter. Clipper в MAIN, Filter в MAIN. Pitch-tracked фильтр по V/Oct проходит по перегруженному басу или lead-партии. Тёпло и музыкально.", "attr": "innerHTML"}, "patch_p3": {"en": "Insert a delay via Send/Return. Each loop iteration gets clipped and filtered. Echoes degrade into harmonic fog over time. Phase controls tonal character.", "ru": "Подключите delay через Send/Return. Каждая итерация петли клиппируется и фильтруется. Эхо постепенно распадается в гармонический туман. Phase задаёт тональный характер.", "attr": "innerHTML"}, "story_label": {"en": "Development", "ru": "Разработка", "attr": "textContent"}, "story_h2": {"en": "Build journal", "ru": "Журнал сборки", "attr": "textContent"}, "story_step1": {"en": "Core signal path", "ru": "Основной тракт сигнала", "attr": "textContent"}, "story_step2": {"en": "Filter & routing", "ru": "Filter и маршрутизация", "attr": "textContent"}, "story_step3": {"en": "Clipper & stability", "ru": "Clipper и стабильность", "attr": "textContent"}, "story_step4": {"en": "V2164 crossfaders", "ru": "V2164 crossfaders", "attr": "textContent"}, "story_step5": {"en": "PCB layout", "ru": "PCB layout", "attr": "textContent"}, "story_h31": {"en": "It started as a simple feedback loop", "ru": "Всё началось с простой feedback-петли", "attr": "textContent"}, "story_h32": {"en": "Session 66: ERC reached zero", "ru": "Сессия 66: ERC достиг нуля", "attr": "textContent"}, "story_h33": {"en": "Now: PCB layout", "ru": "Сейчас: PCB layout", "attr": "textContent"}, "story_p1": {"en": "The idea was straightforward: a stereo feedback processor where you could route things into the loop and control what happens inside it. A diode clipper for harmonic saturation. A 24dB SSI2144 filter for tonal shaping.", "ru": "Идея была прямой: стерео feedback-процессор, в котором можно направлять модули в петлю и управлять тем, что происходит внутри. Diode clipper для гармонической сатурации. 24dB SSI2144 filter для тембральной обработки.", "attr": "innerHTML"}, "story_p2": {"en": "Then came the question: should the clipper be before or inside the loop? The answer was: both, switchable in real time.", "ru": "Затем появился вопрос: должен ли clipper стоять перед петлёй или внутри неё? Ответ — оба варианта, с переключением в реальном времени.", "attr": "innerHTML"}, "story_p3": {"en": "After 66 design sessions — hundreds of schematic edits, ERC cycles, and specification documents — the schematic hit zero errors. 337 components, stereo throughout, fully documented.", "ru": "После 66 проектных сессий — сотен правок схемы, ERC-проверок и спецификаций — схема вышла на ноль ошибок. 337 компонентов, полный стереотракт и полная документация.", "attr": "innerHTML"}, "story_p4": {"en": "The V2164 crossfaders replaced the original passive-pot topology. True VCA-based dry/wet with CV control for both the feedback path and the clipper. Four 3296W Bourns trimmers for L/R balance calibration.", "ru": "V2164 crossfaders заменили исходную пассивную pot-топологию. Полноценный dry/wet на базе VCA с CV-управлением и для feedback-пути, и для clipper-а. Четыре триммера Bourns 3296W для калибровки баланса L/R.", "attr": "innerHTML"}, "story_p5": {"en": "The schematic is frozen. PCB layout is next — 22HP board, placement zones defined for each functional block. First Rev.1 PCB order to JLCPCB planned after layout and DRC verification.", "ru": "Схема зафиксирована. Следующий этап — PCB layout: плата 22HP, зоны размещения определены для каждого функционального блока. Первый заказ Rev.1 PCB на JLCPCB запланирован после layout-а и проверки DRC.", "attr": "innerHTML"}, "story_p6": {"en": "If you want to be notified when the first units are ready, leave your email below.", "ru": "Если хотите узнать, когда будут готовы первые устройства, оставьте email ниже.", "attr": "innerHTML"}, "story_code1": {"en": "// SW1: Clipper → MAIN path or LOOP path\n                                // SW2: SSI2144 → MAIN path or LOOP path\n                                // 74HC74 T-FF + 74HC14 debounce + CV trigger", "ru": "// SW1: Clipper → путь MAIN или LOOP\n                                // SW2: SSI2144 → путь MAIN или LOOP\n                                // 74HC74 T-FF + 74HC14 debounce + CV trigger", "attr": "textContent"}, "story_code2": {"en": "// BOM: 337 components\n                                // ERC: 0 errors · 21 warnings (lib mismatch, irreducible)\n                                // Status: ready for PCB layout", "ru": "// BOM: 337 компонентов\n                                // ERC: 0 ошибок · 21 предупреждение (несовпадение библиотек, неустранимо)\n                                // Status: готово к PCB layout", "attr": "textContent"}, "spec_label": {"en": "Technical", "ru": "Технические данные", "attr": "textContent"}, "spec_h2": {"en": "Specifications", "ru": "Спецификация", "attr": "textContent"}, "spec_sec1": {"en": "Format", "ru": "Формат", "attr": "textContent"}, "spec_sec2": {"en": "Key ICs", "ru": "Ключевые IC", "attr": "textContent"}, "spec_sec3": {"en": "I/O", "ru": "I/O", "attr": "textContent"}, "spec_sec4": {"en": "Panel Controls", "ru": "Органы управления", "attr": "textContent"}, "spectd1": {"en": "Standard", "ru": "Standard", "attr": "textContent"}, "spectd2": {"en": "Eurorack 3U", "ru": "Eurorack 3U", "attr": "textContent"}, "spectd3": {"en": "Width", "ru": "Ширина", "attr": "textContent"}, "spectd4": {"en": "14 HP (71.12mm)", "ru": "14 HP (71.12mm)", "attr": "textContent"}, "spectd5": {"en": "Depth", "ru": "Глубина", "attr": "textContent"}, "spectd6": {"en": "~35mm (TBD after PCB)", "ru": "~35mm (уточняется после PCB)", "attr": "textContent"}, "spectd7": {"en": "Power", "ru": "Питание", "attr": "textContent"}, "spectd8": {"en": "±12V, +5V (16-pin)", "ru": "±12V, +5V (16-pin)", "attr": "textContent"}, "spectd9": {"en": "+5V draw", "ru": "Потребление +5V", "attr": "textContent"}, "spectd10": {"en": "~20mA (logic)", "ru": "~20mA (logic)", "attr": "textContent"}, "spectd11": {"en": "BOM", "ru": "BOM", "attr": "textContent"}, "spectd12": {"en": "337 components", "ru": "337 компонентов", "attr": "textContent"}, "spectd13": {"en": "Status", "ru": "Статус", "attr": "textContent"}, "spectd14": {"en": "Pre-PCB · ERC 0", "ru": "Pre-PCB · ERC 0", "attr": "textContent"}, "spectd15": {"en": "Filter", "ru": "Filter", "attr": "textContent"}, "spectd16": {"en": "SSI2144 × 2 (stereo)", "ru": "SSI2144 × 2 (stereo)", "attr": "textContent"}, "spectd17": {"en": "Drive VCA", "ru": "Drive VCA", "attr": "textContent"}, "spectd18": {"en": "THAT2181 × 2", "ru": "THAT2181 × 2", "attr": "textContent"}, "spectd19": {"en": "Crossfaders", "ru": "Crossfaders", "attr": "textContent"}, "spectd20": {"en": "SSI2164 (V2164) × 2", "ru": "SSI2164 (V2164) × 2", "attr": "textContent"}, "spectd21": {"en": "FB Filters", "ru": "FB Filters", "attr": "textContent"}, "spectd22": {"en": "LM13700 OTA × 2", "ru": "LM13700 OTA × 2", "attr": "textContent"}, "spectd23": {"en": "Op-amps", "ru": "ОУ", "attr": "textContent"}, "spectd24": {"en": "LM4562 · OPA2134 · TL072", "ru": "LM4562 · OPA2134 · TL072", "attr": "textContent"}, "spectd25": {"en": "Logic", "ru": "Логика", "attr": "textContent"}, "spectd26": {"en": "74HC74 · 74HC14", "ru": "74HC74 · 74HC14", "attr": "textContent"}, "spectd27": {"en": "Clipper", "ru": "Clipper", "attr": "textContent"}, "spectd28": {"en": "DIP-8 socket (swappable)", "ru": "DIP-8 socket (сменный)", "attr": "textContent"}, "spectd29": {"en": "DIODE", "ru": "DIODE", "attr": "textContent"}, "spectd30": {"en": "Drive amount (THAT2181)", "ru": "уровень drive (THAT2181)", "attr": "textContent"}, "spectd31": {"en": "FEED D/W", "ru": "FEED D/W", "attr": "textContent"}, "spectd32": {"en": "Feedback depth (V2164)", "ru": "глубина feedback (V2164)", "attr": "textContent"}, "spectd33": {"en": "AUX D/W", "ru": "AUX D/W", "attr": "textContent"}, "spectd34": {"en": "Send/Return mix (V2164)", "ru": "микс Send/Return (V2164)", "attr": "textContent"}, "spectd35": {"en": "PHASE", "ru": "PHASE", "attr": "textContent"}, "spectd36": {"en": "Phase invert (attenuverter)", "ru": "инверсия фазы (attenuverter)", "attr": "textContent"}, "spectd37": {"en": "Q", "ru": "Q", "attr": "textContent"}, "spectd38": {"en": "Filter resonance + trim", "ru": "резонанс фильтра + trim", "attr": "textContent"}, "spectd39": {"en": "FREQ", "ru": "FREQ", "attr": "textContent"}, "spectd40": {"en": "Filter cutoff", "ru": "частота среза фильтра", "attr": "textContent"}, "spectd41": {"en": "LP / HP", "ru": "LP / HP", "attr": "textContent"}, "spectd42": {"en": "FB filter cutoff (LM13700)", "ru": "срез FB filter (LM13700)", "attr": "textContent"}, "spectd43": {"en": "FILT DRV", "ru": "FILT DRV", "attr": "textContent"}, "spectd44": {"en": "SSI2144 input level", "ru": "входной уровень SSI2144", "attr": "textContent"}, "io1": {"en": "In L/R", "ru": "In L/R", "attr": "textContent"}, "io2": {"en": "Out L/R", "ru": "Out L/R", "attr": "textContent"}, "io3": {"en": "Send L/R", "ru": "Send L/R", "attr": "textContent"}, "io4": {"en": "Return L/R", "ru": "Return L/R", "attr": "textContent"}, "io5": {"en": "Diode CV", "ru": "Diode CV", "attr": "textContent"}, "io6": {"en": "Freq CV", "ru": "Freq CV", "attr": "textContent"}, "io7": {"en": "LP / HP CV", "ru": "LP / HP CV", "attr": "textContent"}, "io8": {"en": "V/Oct", "ru": "V/Oct", "attr": "textContent"}, "io9": {"en": "Aux CV", "ru": "Aux CV", "attr": "textContent"}, "io10": {"en": "Phase CV", "ru": "Phase CV", "attr": "textContent"}, "io11": {"en": "SW1 CV", "ru": "SW1 CV", "attr": "textContent"}, "io12": {"en": "SW2 CV", "ru": "SW2 CV", "attr": "textContent"}, "pre_h2": {"en": "Get notified", "ru": "Получить уведомление", "attr": "textContent"}, "pre_lead": {"en": "First batch is limited. Leave your email and we'll reach out when Rev.1 is ready.", "ru": "Первая партия будет ограниченной. Оставьте email, и мы свяжемся с вами, когда Rev.1 будет готов.", "attr": "textContent"}, "pre_placeholder": {"en": "your@email.com", "ru": "your@email.com", "attr": "placeholder"}, "pre_btn": {"en": "Join waitlist", "ru": "Встать в лист ожидания", "attr": "textContent"}, "pn1": {"en": "Schematic clean", "ru": "схема очищена", "attr": "textContent"}, "pn2": {"en": "BOM components", "ru": "компоненты BOM", "attr": "textContent"}, "pn3": {"en": "Panel width", "ru": "ширина панели", "attr": "textContent"}, "pn4": {"en": "PCB status", "ru": "статус PCB", "attr": "textContent"}, "footer_main": {"en": "Feedback Loop Eurorack · 14 HP · ±12V · Stereo © 2026", "ru": "Feedback Loop Eurorack · 14 HP · ±12V · Stereo © 2026", "attr": "textContent"}};
+const FLOW_RU = {"io": {"title": "Audio I/O", "body": "Стерео 3.5 мм джеки. IN L/R → входные буферы. OUT L/R → выход V2164 Feedback Crossfader через суммирующие усилители OPA2134."}, "in-buf": {"title": "Input Buffer — LM4562 × 2", "body": "Качественный входной каскад на двойном операционном усилителе. Низкий шум, высокий slew rate. Снимает DRY_AC напрямую для feedback crossfader. Входной импеданс ~100kΩ."}, "xfader": {"title": "V2164 Feedback Crossfader — U_XFADE_V", "body": "SSI2164 quad VCA смешивает DRY_AC (с входного буфера) и PHASE_OUT (возврат из петли). Управляется ручкой FEED D/W и FEEDBACK_CV. В режиме SW3=SERIES вход WET молчит, поэтому FEED D/W превращается в input volume/ducker — 100% WET = полное подавление входа."}, "clipper": {"title": "Diode Clipper — DIP-8 Socket", "body": "Пассивный shunt clipping через DIP-8 socket. Можно менять любую пару диодов — germanium, silicon, LEDs, zeners. THAT2181 × 2 Drive VCA управляет входным усилением. SW1: MAIN или LOOP. V2164 U_CLIP_V смешивает dry/wet."}, "ssi2144": {"title": "SSI2144 24dB/oct Lowpass — U8_L/U8_R", "body": "Лестничный фильтр Sound Semiconductor SSI2144 на сменной SSOP-16 daughterboard. Трекинг V/Oct через TL072 summer + AB501 sub-audio clamp. Panel Q + триммер Bourns 3296W. SW2: MAIN или LOOP."}, "sendret": {"title": "Send / Return — V2164 Aux Crossfader", "body": "Стерео insert point. В режиме LOOP insert находится внутри feedback-пути. В режиме SW3=SERIES SEND получает полный обработанный сигнал (Xfader→Clipper→SSI), а внешний FX Return продолжается в LP/HP→Phase→OUT. Вся цепь работает последовательно, без feedback."}, "fb-filters": {"title": "LM13700 HP/LP OTA Filters", "body": "Два однополюсных OTA-фильтра в feedback-пути для контроля стабильности. LM13700 transconductance amp. CV-входы с attenuverter. LP сдерживает runaway по ВЧ, HP убирает накопление DC."}, "phase": {"title": "Phase Inverter — TL072 × 4", "body": "CV-управляемый attenuverter. Меняется от +100% (в фазе) до −100% (инверсия). Центр = ноль. Плавное прохождение через ноль. В режиме LOOP: синий возврат = отрицательная feedback-связь (стабилизирует), фиолетовый = положительная (усиливает). В режиме SW3=SERIES выход Phase идёт напрямую в OUT — это последняя ступень линейной цепи."}};
+let currentLang = localStorage.getItem('fl-lang') || 'ru';
+
+function setI18nContent(el, value, attr) {
+  if (!el) return;
+  if (attr === 'placeholder') el.setAttribute('placeholder', value);
+  else if (attr === 'textContent') el.textContent = value;
+  else el.innerHTML = value;
+}
+
+function applyLanguage() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    const item = I18N[key];
+    if (item) setI18nContent(el, item[currentLang] || item.en, item.attr);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.dataset.i18nPlaceholder;
+    const item = I18N[key];
+    if (item) setI18nContent(el, item[currentLang] || item.en, item.attr);
+  });
+  refreshDynamicLabels();
+  const btn = document.getElementById('lang-toggle');
+  if (btn) {
+    btn.textContent = currentLang === 'ru' ? 'EN' : 'RU';
+    btn.classList.toggle('active', currentLang === 'ru');
+    btn.setAttribute('aria-label', currentLang === 'ru' ? 'Switch to English' : 'Переключить на русский');
+  }
+  const activeFlow = window.__lastFlowKey;
+  if (activeFlow) showFlow(activeFlow); else {
+    const el = document.getElementById('flow-desc');
+    if (el) el.innerHTML = I18N.flow_default[currentLang] || I18N.flow_default.en;
+  }
+}
+
+function toggleLang() {
+  currentLang = currentLang === 'ru' ? 'en' : 'ru';
+  localStorage.setItem('fl-lang', currentLang);
+  applyLanguage();
+}
+
+function refreshDynamicLabels() {
+  const sw1btn = document.getElementById('btn-sw1');
+  const sw2btn = document.getElementById('btn-sw2');
+  const sw3btn = document.getElementById('btn-sw3');
+  const sw1lbl = document.getElementById('sw1-lbl');
+  const sw2lbl = document.getElementById('sw2-lbl');
+  const sw3lbl = document.getElementById('sw3-lbl');
+  if (sw1btn && sw1lbl) sw1btn.childNodes[0].textContent = (currentLang==='ru' ? sw1btn.dataset.i18nPrefixRu : sw1btn.dataset.i18nPrefixEn);
+  if (sw2btn && sw2lbl) sw2btn.childNodes[0].textContent = (currentLang==='ru' ? sw2btn.dataset.i18nPrefixRu : sw2btn.dataset.i18nPrefixEn);
+  if (sw3btn && sw3lbl) sw3btn.childNodes[0].textContent = (currentLang==='ru' ? sw3btn.dataset.i18nPrefixRu : sw3btn.dataset.i18nPrefixEn);
+  if (sw1lbl) sw1lbl.textContent = sw1 ? 'LOOP' : 'MAIN';
+  if (sw2lbl) sw2lbl.textContent = sw2 ? 'LOOP' : 'MAIN';
+  if (sw3lbl) sw3lbl.textContent = sw3 ? 'SERIES' : 'LOOP';
+  const burger = document.getElementById('nav-burger');
+  if (burger) {
+    const isOpen = document.getElementById('nav-links')?.classList.contains('open');
+    burger.textContent = isOpen ? (currentLang==='ru' ? 'ЗАКРЫТЬ' : 'CLOSE') : (currentLang==='ru' ? 'МЕНЮ' : 'MENU');
+  }
+}
+</script>
+
+</body>
+</html>
