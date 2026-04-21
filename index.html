@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OUROBOROS — Stereo Feedback Instrument</title>
+  <meta name="description" content="OUROBOROS is a 14HP stereo feedback instrument for Eurorack: routing, clipper, SSI2144, phase, send/return, internal delay, assignable trigger control." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#060606; --bg2:#0d0d0f; --panel:#0f0f12; --card:#121216; --card2:#17171c;
+      --line:#26262d; --soft:#1b1b22; --text:#f3efe4; --muted:#a4a09a; --gold:#b48843; --gold2:#d0a764;
+      --green:#93ff82; --red:#ff6666; --blue:#81a8ff; --shadow:0 20px 60px rgba(0,0,0,.45);
+      --radius:20px; --mono:'JetBrains Mono', monospace; --sans:'Inter', sans-serif;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:radial-gradient(circle at top, #111 0%, #060606 45%);color:var(--text);font-family:var(--sans);line-height:1.55}
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.06;background-image:linear-gradient(var(--gold) 1px,transparent 1px),linear-gradient(90deg,var(--gold) 1px,transparent 1px);background-size:56px 56px;mask-image:radial-gradient(circle at center, black, transparent 80%)}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+    .container{width:min(1240px,calc(100% - 32px));margin:0 auto}
+    .eyebrow{font:500 12px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--gold2)}
+    .section{padding:88px 0;border-top:1px solid rgba(180,136,67,.14)}
+    .grid{display:grid;gap:24px}
+    .nav{position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(180,136,67,.14);backdrop-filter:blur(20px);background:rgba(6,6,6,.82)}
+    .nav-inner{display:flex;align-items:center;justify-content:space-between;min-height:72px;gap:24px}
+    .brand{display:flex;align-items:center;gap:12px;font:700 14px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase}
+    .brand-dot{width:10px;height:10px;border-radius:999px;background:var(--gold);box-shadow:0 0 18px rgba(180,136,67,.7)}
+    .nav-links{display:flex;gap:22px;flex-wrap:wrap}
+    .nav-links a{font:500 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+    .nav-links a:hover{color:var(--text)}
+    .lang-toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:4px;background:rgba(255,255,255,.02)}
+    .lang-toggle button{border:0;background:transparent;color:var(--muted);padding:9px 14px;border-radius:999px;font:600 12px/1 var(--mono);cursor:pointer}
+    .lang-toggle button.active{background:var(--gold);color:#0c0c0c}
+
+    .hero{padding:72px 0 48px}
+    .hero-wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:32px;align-items:center}
+    .hero-copy{padding:18px 0}
+    h1{font-size:clamp(46px,7vw,96px);line-height:.92;letter-spacing:-.05em;margin:14px 0 18px}
+    .sub{font-size:clamp(18px,2vw,22px);color:#d7d0c5;max-width:720px}
+    .hero-points{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0 34px}
+    .pill{border:1px solid rgba(180,136,67,.24);background:rgba(180,136,67,.06);padding:12px 14px;border-radius:999px;font:500 12px/1 var(--mono);letter-spacing:.08em;color:#dbc08e;text-transform:uppercase}
+    .cta-row{display:flex;gap:14px;flex-wrap:wrap}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:15px 22px;border-radius:999px;border:1px solid var(--line);font:700 13px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;transition:.2s ease;cursor:pointer}
+    .btn.primary{background:var(--gold);color:#090909;border-color:var(--gold)}
+    .btn.primary:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(180,136,67,.25)}
+    .btn.ghost{background:transparent;color:var(--text)}
+    .hero-card{background:linear-gradient(180deg,#121216,#0d0d11);border:1px solid var(--line);border-radius:28px;padding:22px;box-shadow:var(--shadow)}
+    .hero-card img{border-radius:18px;border:1px solid rgba(255,255,255,.06);background:#000}
+    .hero-card small{display:block;margin-top:12px;color:var(--muted);font-family:var(--mono);font-size:12px;letter-spacing:.08em}
+
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+    .card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow)}
+    .card h2{font-size:clamp(30px,3vw,44px);line-height:1.02;letter-spacing:-.04em;margin:10px 0 14px}
+    .card p{color:var(--muted);font-size:17px}
+    .facts{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border-radius:18px;overflow:hidden;margin-top:24px}
+    .fact{background:var(--card);padding:22px}
+    .fact b{display:block;font:700 34px/1 var(--mono);color:var(--gold2)}
+    .fact span{display:block;margin-top:8px;color:var(--muted);font:500 12px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.1em}
+
+    .diagram-wrap{display:grid;grid-template-columns:minmax(0,1.1fr) 360px;gap:24px;align-items:start}
+    .diagram-card{padding:22px 22px 16px}
+    .diagram-controls{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 20px}
+    .toggle{border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--text);padding:12px 14px;border-radius:999px;font:600 12px/1 var(--mono);cursor:pointer}
+    .toggle.active{border-color:var(--gold);background:rgba(180,136,67,.12);color:#f0d5a0}
+    .diagram-note{margin-top:16px;padding:16px 18px;border-radius:16px;background:rgba(180,136,67,.06);border:1px solid rgba(180,136,67,.18);color:#d7c8ac}
+    .legend{display:grid;gap:14px}
+    .legend .item{padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.02)}
+    .legend .item h4{margin:0 0 8px;font-size:15px}
+    .legend .item p{margin:0;color:var(--muted);font-size:14px}
+    svg text{font-family:var(--mono)}
+    .path-line{transition:opacity .18s ease, stroke .18s ease}
+    .blk{cursor:pointer;transition:transform .15s ease, filter .15s ease}
+    .blk:hover{transform:translateY(-1px);filter:drop-shadow(0 10px 18px rgba(180,136,67,.16))}
+    .blk rect{fill:#121217;stroke:#3a3025;stroke-width:1.3;rx:14}
+    .blk .title{fill:#f0eadf;font-size:13px;font-weight:700}
+    .blk .subt{fill:#b6afa4;font-size:10px}
+    .blk.active rect{stroke:var(--gold2);stroke-width:1.8}
+
+    .feature-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+    .feature h3{margin:10px 0 8px;font-size:22px}
+    .feature p{margin:0;color:var(--muted)}
+    .tag{display:inline-block;padding:8px 10px;border-radius:999px;background:rgba(180,136,67,.08);border:1px solid rgba(180,136,67,.2);font:600 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#d9bc84}
+
+    .manual-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .step h3{display:flex;align-items:center;gap:10px;margin:8px 0 10px;font-size:20px}
+    .step .num{width:32px;height:32px;border-radius:999px;background:rgba(180,136,67,.12);border:1px solid rgba(180,136,67,.22);display:grid;place-items:center;font:700 13px/1 var(--mono);color:#e0c48f}
+    .step ul{margin:0;padding-left:18px;color:var(--muted)}
+    .step li+li{margin-top:8px}
+
+    .specs{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:12px 0;border-bottom:1px solid rgba(180,136,67,.12);vertical-align:top}
+    th{font:600 12px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:left;width:38%}
+    td{color:#e8e0d4}
+    .small{font-size:14px;color:var(--muted)}
+
+    .footer{padding:42px 0 64px;color:var(--muted)}
+    .footer-box{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;padding-top:28px;border-top:1px solid rgba(180,136,67,.14)}
+
+    @media (max-width: 1024px){
+      .hero-wrap,.diagram-wrap,.split,.specs{grid-template-columns:1fr}
+      .manual-grid{grid-template-columns:1fr 1fr}
+    }
+    @media (max-width: 720px){
+      .nav-inner{min-height:64px}
+      .nav-links{display:none}
+      .hero{padding-top:40px}
+      .feature-grid,.manual-grid,.facts{grid-template-columns:1fr}
+      .container{width:min(100% - 20px,1240px)}
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="container nav-inner">
+      <div class="brand"><span class="brand-dot"></span><span>OUROBOROS</span></div>
+      <div class="nav-links">
+        <a href="#overview" data-i18n="nav.overview">Overview</a>
+        <a href="#diagram" data-i18n="nav.diagram">Signal Flow</a>
+        <a href="#features" data-i18n="nav.features">Features</a>
+        <a href="#manual" data-i18n="nav.manual">Manual</a>
+        <a href="#specs" data-i18n="nav.specs">Specs</a>
+      </div>
+      <div class="lang-toggle">
+        <button id="lang-en" class="active">EN</button>
+        <button id="lang-ru">RU</button>
+      </div>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="container hero-wrap">
+      <div class="hero-copy">
+        <div class="eyebrow" data-i18n="hero.eyebrow">14HP Stereo Feedback Instrument</div>
+        <h1 data-i18n-html="hero.title">OUROBOROS<br>build the loop</h1>
+        <p class="sub" data-i18n="hero.sub">A performable stereo feedback environment for routing, saturation, filtering, send/return processing and controlled recursion — now with internal tap-tempo delay, assignable trigger control and a dual-language panel concept.</p>
+        <div class="hero-points">
+          <span class="pill">SSI2144</span>
+          <span class="pill">Diode Clipper</span>
+          <span class="pill">Stereo S/R</span>
+          <span class="pill">Internal Delay</span>
+          <span class="pill">Assignable Trig</span>
+        </div>
+        <div class="cta-row">
+          <a class="btn primary" href="#diagram" data-i18n="hero.cta1">Explore architecture</a>
+          <a class="btn ghost" href="#manual" data-i18n="hero.cta2">Read manual</a>
+        </div>
+      </div>
+      <div class="hero-card">
+        <img src="panel-symbols.png" alt="OUROBOROS symbolic panel" />
+        <small data-i18n="hero.caption">Current symbolic production-side panel mockup, used as the visual reference for this page.</small>
+      </div>
+    </div>
+  </section>
+
+  <section id="overview" class="section">
+    <div class="container split">
+      <div class="card">
+        <div class="eyebrow" data-i18n="overview.eyebrow1">Positioning</div>
+        <h2 data-i18n="overview.title1">Not a single effect. A feedback topology you can play.</h2>
+        <p data-i18n="overview.copy1">OUROBOROS is built around a controllable stereo loop. The crossfader drives signal into recursion, the clipper and SSI2144 can move between the main path and the loop, the send/return opens the circuit to external processors, and post-loop HP/LP plus phase control keep the whole system musical even at unstable settings.</p>
+      </div>
+      <div class="card">
+        <div class="eyebrow" data-i18n="overview.eyebrow2">What changed</div>
+        <h2 data-i18n="overview.title2">A more complete performance system</h2>
+        <p data-i18n="overview.copy2">The new concept adds a dedicated delay button, internal tap-tempo delay for unpatched send/return operation, assignable trigger control, MCU-driven button logic and clearer state feedback. It stays analog where it matters and uses digital control only where it expands performance and reliability.</p>
+        <div class="facts">
+          <div class="fact"><b>14HP</b><span data-i18n="facts.0">Symmetrical panel layout</span></div>
+          <div class="fact"><b>4</b><span data-i18n="facts.1">Performance buttons</span></div>
+          <div class="fact"><b>Stereo</b><span data-i18n="facts.2">Input, loop and output path</span></div>
+          <div class="fact"><b>Tap</b><span data-i18n="facts.3">Internal PT2399 delay time</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="diagram" class="section">
+    <div class="container diagram-wrap">
+      <div class="card diagram-card">
+        <div class="eyebrow" data-i18n="diagram.eyebrow">Interactive signal flow</div>
+        <h2 data-i18n="diagram.title">See how the architecture moves</h2>
+        <p class="small" data-i18n="diagram.copy">Toggle SW1, SW2 and SW3 to see how the clipper, SSI2144 and macro-route move. Toggle SW4 to show the internal delay fallback when the external send/return is unpatched.</p>
+        <div class="diagram-controls">
+          <button class="toggle" id="btn-sw1" data-key="sw1">SW1 · <span></span></button>
+          <button class="toggle" id="btn-sw2" data-key="sw2">SW2 · <span></span></button>
+          <button class="toggle" id="btn-sw3" data-key="sw3">SW3 · <span></span></button>
+          <button class="toggle" id="btn-sw4" data-key="sw4">SW4 · <span></span></button>
+        </div>
+        <svg id="flowSvg" viewBox="0 0 980 540" width="100%" aria-label="Interactive routing diagram">
+          <defs>
+            <marker id="arrMain" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#b48843"/></marker>
+            <marker id="arrLoop" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#81a8ff"/></marker>
+          </defs>
+          <text x="118" y="38" fill="#bba37a" font-size="11" letter-spacing="2">MAIN PATH</text>
+          <text x="664" y="38" fill="#99b6ff" font-size="11" letter-spacing="2">FEEDBACK LOOP</text>
+          <g class="blk" data-block="input" transform="translate(44,60)">
+            <rect width="190" height="58"></rect><text class="title" x="95" y="24" text-anchor="middle">INPUT L / INPUT R</text><text class="subt" x="95" y="42" text-anchor="middle">buffered stereo entry</text>
+          </g>
+          <g class="blk" data-block="xfade" transform="translate(44,154)">
+            <rect width="190" height="72"></rect><text class="title" x="95" y="27" text-anchor="middle">FEEDBACK MIX</text><text class="subt" x="95" y="46" text-anchor="middle">crossfade dry into wet return</text><text class="subt" x="95" y="60" text-anchor="middle">the center of the instrument</text>
+          </g>
+          <g class="blk" data-block="clip-main" transform="translate(44,266)">
+            <rect width="190" height="62"></rect><text class="title" x="95" y="25" text-anchor="middle">CLIPPER</text><text class="subt" x="95" y="45" text-anchor="middle">main path position</text>
+          </g>
+          <g class="blk" data-block="ssi-main" transform="translate(44,366)">
+            <rect width="190" height="62"></rect><text class="title" x="95" y="25" text-anchor="middle">SSI2144</text><text class="subt" x="95" y="45" text-anchor="middle">main path position</text>
+          </g>
+          <g class="blk" data-block="output" transform="translate(44,466)">
+            <rect width="190" height="58"></rect><text class="title" x="95" y="24" text-anchor="middle">OUTPUT L / OUTPUT R</text><text class="subt" x="95" y="42" text-anchor="middle">final stereo output</text>
+          </g>
+
+          <g class="blk" data-block="clip-loop" transform="translate(598,60)">
+            <rect width="220" height="62"></rect><text class="title" x="110" y="24" text-anchor="middle">CLIPPER</text><text class="subt" x="110" y="45" text-anchor="middle">loop position · clip drive / clip mix</text>
+          </g>
+          <g class="blk" data-block="ssi-loop" transform="translate(598,150)">
+            <rect width="220" height="62"></rect><text class="title" x="110" y="24" text-anchor="middle">SSI2144</text><text class="subt" x="110" y="45" text-anchor="middle">loop position · freq / q / v-oct</text>
+          </g>
+          <g class="blk" data-block="sr" transform="translate(598,242)">
+            <rect width="220" height="62"></rect><text class="title" x="110" y="24" text-anchor="middle">SEND / RETURN</text><text class="subt" x="110" y="45" text-anchor="middle">external insert or internal delay</text>
+          </g>
+          <g class="blk" data-block="delay" transform="translate(598,332)">
+            <rect width="220" height="62"></rect><text class="title" x="110" y="24" text-anchor="middle">INTERNAL DELAY</text><text class="subt" x="110" y="45" text-anchor="middle">PT2399 · tap tempo · fallback loop</text>
+          </g>
+          <g class="blk" data-block="filters" transform="translate(598,422)">
+            <rect width="220" height="62"></rect><text class="title" x="110" y="24" text-anchor="middle">LOOP-END SHAPING</text><text class="subt" x="110" y="45" text-anchor="middle">HP / phase / LP cleanup before return</text>
+          </g>
+
+          <path class="path-line" id="m1" d="M139 118 V154" fill="none" stroke="#b48843" stroke-width="3" marker-end="url(#arrMain)"/>
+          <path class="path-line" id="m2" d="M139 226 V266" fill="none" stroke="#b48843" stroke-width="3" marker-end="url(#arrMain)"/>
+          <path class="path-line" id="m3" d="M139 328 V366" fill="none" stroke="#b48843" stroke-width="3" marker-end="url(#arrMain)"/>
+          <path class="path-line" id="m4" d="M139 428 V466" fill="none" stroke="#b48843" stroke-width="3" marker-end="url(#arrMain)"/>
+
+          <path class="path-line" id="toLoop" d="M234 190 H370 C420 190 420 92 480 92 H598" fill="none" stroke="#81a8ff" stroke-width="3" stroke-dasharray="7 7" marker-end="url(#arrLoop)"/>
+          <path class="path-line" id="l1" d="M708 122 V150" fill="none" stroke="#81a8ff" stroke-width="3" marker-end="url(#arrLoop)"/>
+          <path class="path-line" id="l2" d="M708 212 V242" fill="none" stroke="#81a8ff" stroke-width="3" marker-end="url(#arrLoop)"/>
+          <path class="path-line" id="l3" d="M708 304 V332" fill="none" stroke="#81a8ff" stroke-width="3" marker-end="url(#arrLoop)"/>
+          <path class="path-line" id="l4" d="M708 394 V422" fill="none" stroke="#81a8ff" stroke-width="3" marker-end="url(#arrLoop)"/>
+          <path class="path-line" id="returnLoop" d="M598 452 H482 C430 452 430 190 330 190 H234" fill="none" stroke="#81a8ff" stroke-width="3" stroke-dasharray="7 7" marker-end="url(#arrLoop)"/>
+
+          <path class="path-line" id="seriesBypass" d="M818 454 H902 C930 454 930 495 902 495 H234" fill="none" stroke="#b48843" stroke-width="2.5" stroke-dasharray="6 6" opacity="0"/>
+        </svg>
+        <div class="diagram-note" id="diagramNote"></div>
+      </div>
+      <div class="legend">
+        <div class="item"><h4 data-i18n="legend.0t">SW1 · clipper position</h4><p data-i18n="legend.0d">Moves the diode clipper between the main path and the loop. This changes both tone and how recursion builds.</p></div>
+        <div class="item"><h4 data-i18n="legend.1t">SW2 · SSI2144 position</h4><p data-i18n="legend.1d">Moves the 24dB filter between the main path and the loop. In-loop operation turns it into a behavioural control, not just EQ.</p></div>
+        <div class="item"><h4 data-i18n="legend.2t">SW3 · macro route</h4><p data-i18n="legend.2d">Switches the architecture between loop behaviour and a more linear series-like route. This is the fast topology change.</p></div>
+        <div class="item"><h4 data-i18n="legend.3t">SW4 · internal delay</h4><p data-i18n="legend.3d">Tap tempo on short presses, very long press for delay on/off. When send/return is unpatched, the internal PT2399 delay can occupy that space.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="section">
+    <div class="container">
+      <div class="eyebrow" data-i18n="features.eyebrow">Selling points</div>
+      <h2 data-i18n="features.title">Why this module stands out</h2>
+      <div class="feature-grid">
+        <div class="card feature"><span class="tag" data-i18n="featureTags.0">Routing as sound design</span><h3 data-i18n="featureTitles.0">Repositionable character blocks</h3><p data-i18n="featureBodies.0">The clipper and SSI2144 do not simply sit in a fixed chain. They can move between the main path and the loop, so the architecture itself becomes part of the sound.</p></div>
+        <div class="card feature"><span class="tag" data-i18n="featureTags.1">Playable recursion</span><h3 data-i18n="featureTitles.1">Feedback you can control</h3><p data-i18n="featureBodies.1">Crossfade into the loop, shape energy with LP / HP, destabilize with phase, or tame the loop for a focused stereo processor. The whole point is controllable recursion.</p></div>
+        <div class="card feature"><span class="tag" data-i18n="featureTags.2">External / internal duality</span><h3 data-i18n="featureTitles.2">Send/return plus fallback delay</h3><p data-i18n="featureBodies.2">Patch external processors into the stereo loop, or leave send/return open and let the internal tap-tempo delay take over. It works as an insert hub and as a self-contained effect.</p></div>
+        <div class="card feature"><span class="tag" data-i18n="featureTags.3">Performance control</span><h3 data-i18n="featureTitles.3">Assignable trigger intelligence</h3><p data-i18n="featureBodies.3">One trigger input can be reassigned to SW1, SW2, SW3 or SW4. That means one external clock or gate source can become routing, macro-topology or delay tap control.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="manual" class="section">
+    <div class="container">
+      <div class="eyebrow" data-i18n="manual.eyebrow">Quick manual</div>
+      <h2 data-i18n="manual.title">How to explain it in one minute</h2>
+      <div class="manual-grid">
+        <div class="card step"><h3><span class="num">1</span><span data-i18n="manual.steps.0t">Build the loop</span></h3><ul><li data-i18n="manual.steps.0a">Feed signal with FEEDBACK MIX.</li><li data-i18n="manual.steps.0b">Use S/R MIX for loop amount and external insert blend.</li><li data-i18n="manual.steps.0c">Start subtle, because the module can escalate quickly.</li></ul></div>
+        <div class="card step"><h3><span class="num">2</span><span data-i18n="manual.steps.1t">Move the character</span></h3><ul><li data-i18n="manual.steps.1a">SW1 moves the clipper.</li><li data-i18n="manual.steps.1b">SW2 moves the SSI2144.</li><li data-i18n="manual.steps.1c">SW3 changes the macro-route between loop and series behaviour.</li></ul></div>
+        <div class="card step"><h3><span class="num">3</span><span data-i18n="manual.steps.2t">Stabilize or break it</span></h3><ul><li data-i18n="manual.steps.2a">Use LP and HP to control spectral buildup.</li><li data-i18n="manual.steps.2b">Use PHASE to create widening, cancellation or unstable reinforcement.</li><li data-i18n="manual.steps.2c">FILTER DRIVE and CLIP DRIVE decide how hard the loop bites back.</li></ul></div>
+        <div class="card step"><h3><span class="num">4</span><span data-i18n="manual.steps.3t">Use the internal delay</span></h3><ul><li data-i18n="manual.steps.3a">When send/return is unpatched, internal delay can occupy that slot.</li><li data-i18n="manual.steps.3b">SW4 short taps set tempo. Two taps already work; later taps refine the average.</li><li data-i18n="manual.steps.3c">Very long press toggles delay on/off.</li></ul></div>
+        <div class="card step"><h3><span class="num">5</span><span data-i18n="manual.steps.4t">Assign trigger control</span></h3><ul><li data-i18n="manual.steps.4a">Long press SW1, SW2, SW3 or SW4 to assign the global trigger input.</li><li data-i18n="manual.steps.4b">Assigned trigger behaves like a virtual short press for that button.</li><li data-i18n="manual.steps.4c">If assigned to SW4, the trigger input becomes external tap tempo.</li></ul></div>
+        <div class="card step"><h3><span class="num">6</span><span data-i18n="manual.steps.5t">Choose your panel language</span></h3><ul><li data-i18n="manual.steps.5a">The symmetrical panel concept allows a symbol side and a text side.</li><li data-i18n="manual.steps.5b">One side can stay occult and compact; the reverse can be explicit and technical.</li><li data-i18n="manual.steps.5c">Same mechanics, two reading styles.</li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="specs" class="section">
+    <div class="container specs">
+      <div class="card">
+        <div class="eyebrow" data-i18n="specs.eyebrow1">Technical outline</div>
+        <h2 data-i18n="specs.title1">Core architecture</h2>
+        <table>
+          <tr><th data-i18n="specRows.0k">Format</th><td data-i18n="specRows.0v">Eurorack, 14HP, stereo</td></tr>
+          <tr><th data-i18n="specRows.1k">Main idea</th><td data-i18n="specRows.1v">Performable stereo feedback environment with movable character blocks</td></tr>
+          <tr><th data-i18n="specRows.2k">Main controls</th><td data-i18n="specRows.2v">Feedback mix, SSI2144 freq/Q, clip drive/mix, filter drive, S/R mix, LP, phase, HP</td></tr>
+          <tr><th data-i18n="specRows.3k">Buttons</th><td data-i18n="specRows.3v">SW1 clipper route, SW2 SSI route, SW3 macro route, SW4 delay / tap</td></tr>
+          <tr><th data-i18n="specRows.4k">Loop processing</th><td data-i18n="specRows.4v">Clipper, SSI2144, send/return, internal delay, loop-end shaping, phase</td></tr>
+          <tr><th data-i18n="specRows.5k">Digital support</th><td data-i18n="specRows.5v">MCU-driven button logic, LED states, trigger assignment, tap tempo, digital pot delay control</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="eyebrow" data-i18n="specs.eyebrow2">I/O and control</div>
+        <h2 data-i18n="specs.title2">Patch vocabulary</h2>
+        <table>
+          <tr><th data-i18n="specRows2.0k">Audio I/O</th><td data-i18n="specRows2.0v">Input L, Input R, Output L, Output R</td></tr>
+          <tr><th data-i18n="specRows2.1k">Loop I/O</th><td data-i18n="specRows2.1v">Send L, Send R, Return L, Return R</td></tr>
+          <tr><th data-i18n="specRows2.2k">CV inputs</th><td data-i18n="specRows2.2v">Feedback mix, SSI2144 freq, SSI2144 Q / V-Oct, clip drive, clip mix, filter drive, S/R mix, LP freq, phase, HP freq</td></tr>
+          <tr><th data-i18n="specRows2.3k">Trigger control</th><td data-i18n="specRows2.3v">Dedicated SW1/SW2 triggers plus one assignable global trigger input</td></tr>
+          <tr><th data-i18n="specRows2.4k">Delay control</th><td data-i18n="specRows2.4v">SW4 tap tempo, very long press on/off, external trigger taps when assigned</td></tr>
+          <tr><th data-i18n="specRows2.5k">Panel concept</th><td data-i18n="specRows2.5v">Symmetrical mechanics, symbolic side and text side potential</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer-box">
+      <div>
+        <div class="eyebrow">OUROBOROS</div>
+        <div class="small" data-i18n="footer.copy">Sales/manual concept page. Replace preorder links and commercial details with your final production info.</div>
+      </div>
+      <a class="btn ghost" href="#overview" data-i18n="footer.cta">Back to top</a>
+    </div>
+  </footer>
+
+  <script>
+    const i18n = {
+      en: {
+        'nav.overview':'Overview','nav.diagram':'Signal Flow','nav.features':'Features','nav.manual':'Manual','nav.specs':'Specs',
+        'hero.eyebrow':'14HP Stereo Feedback Instrument','hero.title':'OUROBOROS<br>build the loop','hero.sub':'A performable stereo feedback environment for routing, saturation, filtering, send/return processing and controlled recursion — now with internal tap-tempo delay, assignable trigger control and a dual-language panel concept.','hero.cta1':'Explore architecture','hero.cta2':'Read manual','hero.caption':'Current symbolic production-side panel mockup, used as the visual reference for this page.',
+        'overview.eyebrow1':'Positioning','overview.title1':'Not a single effect. A feedback topology you can play.','overview.copy1':'OUROBOROS is built around a controllable stereo loop. The crossfader drives signal into recursion, the clipper and SSI2144 can move between the main path and the loop, the send/return opens the circuit to external processors, and post-loop HP/LP plus phase control keep the whole system musical even at unstable settings.',
+        'overview.eyebrow2':'What changed','overview.title2':'A more complete performance system','overview.copy2':'The new concept adds a dedicated delay button, internal tap-tempo delay for unpatched send/return operation, assignable trigger control, MCU-driven button logic and clearer state feedback. It stays analog where it matters and uses digital control only where it expands performance and reliability.',
+        'facts.0':'Symmetrical panel layout','facts.1':'Performance buttons','facts.2':'Input, loop and output path','facts.3':'Internal PT2399 delay time',
+        'diagram.eyebrow':'Interactive signal flow','diagram.title':'See how the architecture moves','diagram.copy':'Toggle SW1, SW2 and SW3 to see how the clipper, SSI2144 and macro-route move. Toggle SW4 to show the internal delay fallback when the external send/return is unpatched.',
+        'legend.0t':'SW1 · clipper position','legend.0d':'Moves the diode clipper between the main path and the loop. This changes both tone and how recursion builds.','legend.1t':'SW2 · SSI2144 position','legend.1d':'Moves the 24dB filter between the main path and the loop. In-loop operation turns it into a behavioural control, not just EQ.','legend.2t':'SW3 · macro route','legend.2d':'Switches the architecture between loop behaviour and a more linear series-like route. This is the fast topology change.','legend.3t':'SW4 · internal delay','legend.3d':'Tap tempo on short presses, very long press for delay on/off. When send/return is unpatched, the internal PT2399 delay can occupy that space.',
+        'features.eyebrow':'Selling points','features.title':'Why this module stands out',
+        'featureTags.0':'Routing as sound design','featureTitles.0':'Repositionable character blocks','featureBodies.0':'The clipper and SSI2144 do not simply sit in a fixed chain. They can move between the main path and the loop, so the architecture itself becomes part of the sound.',
+        'featureTags.1':'Playable recursion','featureTitles.1':'Feedback you can control','featureBodies.1':'Crossfade into the loop, shape energy with LP / HP, destabilize with phase, or tame the loop for a focused stereo processor. The whole point is controllable recursion.',
+        'featureTags.2':'External / internal duality','featureTitles.2':'Send/return plus fallback delay','featureBodies.2':'Patch external processors into the stereo loop, or leave send/return open and let the internal tap-tempo delay take over. It works as an insert hub and as a self-contained effect.',
+        'featureTags.3':'Performance control','featureTitles.3':'Assignable trigger intelligence','featureBodies.3':'One trigger input can be reassigned to SW1, SW2, SW3 or SW4. That means one external clock or gate source can become routing, macro-topology or delay tap control.',
+        'manual.eyebrow':'Quick manual','manual.title':'How to explain it in one minute',
+        'manual.steps.0t':'Build the loop','manual.steps.0a':'Feed signal with FEEDBACK MIX.','manual.steps.0b':'Use S/R MIX for loop amount and external insert blend.','manual.steps.0c':'Start subtle, because the module can escalate quickly.',
+        'manual.steps.1t':'Move the character','manual.steps.1a':'SW1 moves the clipper.','manual.steps.1b':'SW2 moves the SSI2144.','manual.steps.1c':'SW3 changes the macro-route between loop and series behaviour.',
+        'manual.steps.2t':'Stabilize or break it','manual.steps.2a':'Use LP and HP to control spectral buildup.','manual.steps.2b':'Use PHASE to create widening, cancellation or unstable reinforcement.','manual.steps.2c':'FILTER DRIVE and CLIP DRIVE decide how hard the loop bites back.',
+        'manual.steps.3t':'Use the internal delay','manual.steps.3a':'When send/return is unpatched, internal delay can occupy that slot.','manual.steps.3b':'SW4 short taps set tempo. Two taps already work; later taps refine the average.','manual.steps.3c':'Very long press toggles delay on/off.',
+        'manual.steps.4t':'Assign trigger control','manual.steps.4a':'Long press SW1, SW2, SW3 or SW4 to assign the global trigger input.','manual.steps.4b':'Assigned trigger behaves like a virtual short press for that button.','manual.steps.4c':'If assigned to SW4, the trigger input becomes external tap tempo.',
+        'manual.steps.5t':'Choose your panel language','manual.steps.5a':'The symmetrical panel concept allows a symbol side and a text side.','manual.steps.5b':'One side can stay occult and compact; the reverse can be explicit and technical.','manual.steps.5c':'Same mechanics, two reading styles.',
+        'specs.eyebrow1':'Technical outline','specs.title1':'Core architecture','specRows.0k':'Format','specRows.0v':'Eurorack, 14HP, stereo','specRows.1k':'Main idea','specRows.1v':'Performable stereo feedback environment with movable character blocks','specRows.2k':'Main controls','specRows.2v':'Feedback mix, SSI2144 freq/Q, clip drive/mix, filter drive, S/R mix, LP, phase, HP','specRows.3k':'Buttons','specRows.3v':'SW1 clipper route, SW2 SSI route, SW3 macro route, SW4 delay / tap','specRows.4k':'Loop processing','specRows.4v':'Clipper, SSI2144, send/return, internal delay, loop-end shaping, phase','specRows.5k':'Digital support','specRows.5v':'MCU-driven button logic, LED states, trigger assignment, tap tempo, digital pot delay control',
+        'specs.eyebrow2':'I/O and control','specs.title2':'Patch vocabulary','specRows2.0k':'Audio I/O','specRows2.0v':'Input L, Input R, Output L, Output R','specRows2.1k':'Loop I/O','specRows2.1v':'Send L, Send R, Return L, Return R','specRows2.2k':'CV inputs','specRows2.2v':'Feedback mix, SSI2144 freq, SSI2144 Q / V-Oct, clip drive, clip mix, filter drive, S/R mix, LP freq, phase, HP freq','specRows2.3k':'Trigger control','specRows2.3v':'Dedicated SW1/SW2 triggers plus one assignable global trigger input','specRows2.4k':'Delay control','specRows2.4v':'SW4 tap tempo, very long press on/off, external trigger taps when assigned','specRows2.5k':'Panel concept','specRows2.5v':'Symmetrical mechanics, symbolic side and text side potential',
+        'footer.copy':'Sales/manual concept page. Replace preorder links and commercial details with your final production info.','footer.cta':'Back to top'
+      },
+      ru: {
+        'nav.overview':'Обзор','nav.diagram':'Маршрут','nav.features':'Фишки','nav.manual':'Мануал','nav.specs':'Спеки',
+        'hero.eyebrow':'14HP стерео feedback-инструмент','hero.title':'OUROBOROS<br>строй петлю','hero.sub':'Перформативная стерео-среда для маршрутизации, сатурации, фильтрации, send/return-обработки и управляемой рекурсии — теперь с внутренним tap-tempo delay, назначаемым trigger-входом и двусторонней панельной концепцией.','hero.cta1':'Изучить архитектуру','hero.cta2':'Открыть мануал','hero.caption':'Актуальный мокап символической стороны панели — он встроен в страницу как главный визуальный референс.',
+        'overview.eyebrow1':'Позиционирование','overview.title1':'Не один эффект, а feedback-топология, на которой можно играть.','overview.copy1':'OUROBOROS построен вокруг управляемой стерео-петли. Кроссфейдер подаёт сигнал в рекурсию, clipper и SSI2144 могут переезжать между основным трактом и loop-путём, send/return открывает схему внешним процессорам, а post-loop LP/HP и phase помогают удерживать систему музыкальной даже на нестабильных режимах.',
+        'overview.eyebrow2':'Что стало новым','overview.title2':'Более зрелая перформанс-система','overview.copy2':'Новая версия добавляет отдельную delay-кнопку, внутренний tap-tempo delay для режима без внешнего send/return, назначаемый trigger-вход, MCU-логику для кнопок и более понятную state-индикацию. Аналог остаётся в звуковом тракте, цифровая часть используется только там, где она реально расширяет контроль и надёжность.',
+        'facts.0':'Симметричный panel layout','facts.1':'Кнопки для перформанса','facts.2':'Стерео вход, loop и выход','facts.3':'Внутренний PT2399 delay',
+        'diagram.eyebrow':'Интерактивная схема','diagram.title':'Посмотри, как двигается архитектура','diagram.copy':'Переключай SW1, SW2 и SW3, чтобы увидеть, как перемещаются clipper, SSI2144 и общий macro-route. Переключай SW4, чтобы показать fallback-внутренний delay, когда внешний send/return не используется.',
+        'legend.0t':'SW1 · положение clipper','legend.0d':'Перемещает диодный clipper между основным трактом и петлёй. Меняет не только тембр, но и способ набора feedback-энергии.','legend.1t':'SW2 · положение SSI2144','legend.1d':'Перемещает 24dB фильтр между main и loop. Внутри петли он становится уже не просто эквализацией, а регулятором поведения системы.','legend.2t':'SW3 · macro-route','legend.2d':'Переключает архитектуру между loop-поведением и более линейным series-режимом. Это быстрый топологический сдвиг.','legend.3t':'SW4 · внутренний delay','legend.3d':'Короткие нажатия задают tap tempo, очень долгое нажатие включает/выключает delay. Если send/return пустой, внутренний PT2399 может занять это место.',
+        'features.eyebrow':'Сильные стороны','features.title':'Почему модуль реально выделяется',
+        'featureTags.0':'Routing как sound design','featureTitles.0':'Переставляемые характерные блоки','featureBodies.0':'Clipper и SSI2144 не сидят в фиксированной цепочке. Они могут перемещаться между main и loop, из-за чего сама архитектура становится частью звучания.',
+        'featureTags.1':'Играбельная рекурсия','featureTitles.1':'Feedback, который можно держать в руках','featureBodies.1':'Заводи сигнал в петлю, управляй накоплением через LP / HP, destabilize через phase или, наоборот, держи всё в рамках как тонкий стерео-процессор. Смысл модуля — именно в контролируемой рекурсии.',
+        'featureTags.2':'Внешнее / внутреннее','featureTitles.2':'Send/return плюс встроенный delay','featureBodies.2':'Патчь внешние процессоры в стерео-петлю, а когда send/return пустой — отдавай это место внутреннему tap-tempo delay. Получается и insert-hub, и автономный эффект.',
+        'featureTags.3':'Перформанс-контроль','featureTitles.3':'Назначаемый trigger-интеллект','featureBodies.3':'Один trigger-вход можно назначить на SW1, SW2, SW3 или SW4. Значит один внешний clock/gate может стать либо routing-контролем, либо macro-route, либо внешним tap tempo.',
+        'manual.eyebrow':'Быстрый мануал','manual.title':'Как объяснить модуль за минуту',
+        'manual.steps.0t':'Собери петлю','manual.steps.0a':'Подавай сигнал в feedback через FEEDBACK MIX.','manual.steps.0b':'Используй S/R MIX как количество loop и как степень подмешивания внешней вставки.','manual.steps.0c':'Начинай мягко: модуль легко уходит в очень живое поведение.',
+        'manual.steps.1t':'Перемещай характер','manual.steps.1a':'SW1 двигает clipper.','manual.steps.1b':'SW2 двигает SSI2144.','manual.steps.1c':'SW3 меняет macro-route между loop и series-логикой.',
+        'manual.steps.2t':'Стабилизируй или ломай','manual.steps.2a':'LP и HP контролируют спектральное накопление.','manual.steps.2b':'PHASE даёт widening, cancellation или нестабильное усиление.','manual.steps.2c':'FILTER DRIVE и CLIP DRIVE определяют, насколько агрессивно петля начинает отвечать.',
+        'manual.steps.3t':'Используй внутренний delay','manual.steps.3a':'Когда send/return не запатчен, его место может занять внутренний delay.','manual.steps.3b':'Короткие нажатия SW4 задают tempo. Два тапа уже валидны, следующие уточняют среднее время.','manual.steps.3c':'Очень долгое нажатие включает или выключает delay.',
+        'manual.steps.4t':'Назначай trigger-контроль','manual.steps.4a':'Долгое нажатие на SW1, SW2, SW3 или SW4 назначает общий trigger-вход на эту кнопку.','manual.steps.4b':'После назначения trigger работает как виртуальное короткое нажатие выбранной кнопки.','manual.steps.4c':'Если назначить trigger на SW4, вход превращается во внешний tap tempo.',
+        'manual.steps.5t':'Выбирай язык панели','manual.steps.5a':'Симметричная механика позволяет сделать символическую и текстовую стороны панели.','manual.steps.5b':'Одна сторона может быть оккультной и компактной, вторая — прямой и технической.','manual.steps.5c':'Одна и та же механика, два способа чтения.',
+        'specs.eyebrow1':'Технический контур','specs.title1':'Ядро архитектуры','specRows.0k':'Формат','specRows.0v':'Eurorack, 14HP, стерео','specRows.1k':'Главная идея','specRows.1v':'Играбельная стерео feedback-среда с перемещаемыми характерными блоками','specRows.2k':'Главные ручки','specRows.2v':'Feedback mix, SSI2144 freq/Q, clip drive/mix, filter drive, S/R mix, LP, phase, HP','specRows.3k':'Кнопки','specRows.3v':'SW1 route clipper, SW2 route SSI, SW3 macro route, SW4 delay / tap','specRows.4k':'Обработка в петле','specRows.4v':'Clipper, SSI2144, send/return, внутренний delay, loop-end shaping, phase','specRows.5k':'Цифровая поддержка','specRows.5v':'MCU-логика кнопок, LED-state, trigger assignment, tap tempo, digital pot для delay',
+        'specs.eyebrow2':'I/O и управление','specs.title2':'Патч-язык модуля','specRows2.0k':'Аудио I/O','specRows2.0v':'Input L, Input R, Output L, Output R','specRows2.1k':'Loop I/O','specRows2.1v':'Send L, Send R, Return L, Return R','specRows2.2k':'CV inputs','specRows2.2v':'Feedback mix, SSI2144 freq, SSI2144 Q / V-Oct, clip drive, clip mix, filter drive, S/R mix, LP freq, phase, HP freq','specRows2.3k':'Trigger control','specRows2.3v':'Отдельные SW1/SW2 trigger plus один assignable global trigger input','specRows2.4k':'Delay control','specRows2.4v':'SW4 tap tempo, очень долгое нажатие on/off, внешний tap через trigger when assigned','specRows2.5k':'Концепция панели','specRows2.5v':'Симметричная механика, потенциал для symbol/text flip-panel',
+        'footer.copy':'Концепт sales/manual страницы. Замени preorder-ссылки и коммерческие данные на свои финальные.','footer.cta':'Наверх'
+      }
+    };
+
+    let lang = 'en';
+    const state = { sw1: true, sw2: true, sw3: false, sw4: true };
+    const noteText = {
+      en: {
+        default: 'SW1 places the clipper in the loop, SW2 places the SSI2144 in the loop, SW3 is in LOOP mode, and SW4 shows the internal delay fallback active. Click any block in the diagram for focused context.',
+        input: 'Stereo input enters the instrument before any character block moves. The crossfader is the door into recursion.',
+        xfade: 'Feedback Mix blends dry signal with the loop return. This is what makes the module feel like a playable feedback environment rather than a static insert effect.',
+        'clip-main': 'SW1 currently places the clipper in the main path. Here it behaves more like a front-end character stage before the loop is even built.',
+        'ssi-main': 'SW2 currently places the SSI2144 in the main path. In this position it reads more like a traditional filter voice inside the main chain.',
+        output: 'Stereo output is the final sum after routing choices, loop return and topology changes. In series-like use it can feel more like a linear processor; in loop mode it reflects the whole recursive system.',
+        'clip-loop': 'SW1 currently places the clipper inside the loop. That means clipping affects not just tone, but how the loop feeds back into itself over time.',
+        'ssi-loop': 'SW2 currently places the SSI2144 inside the loop. This turns filtering into behavioural control: resonance, cutoff and drive alter the actual loop dynamics.',
+        sr: 'The send/return is the opening in the architecture. Patch external processors here, or leave it open and let the internal delay occupy this slot.',
+        delay: 'When active, the internal PT2399 delay behaves like an internal insert for the loop. Short taps on SW4 set timing, and assignable trigger input can become external tap tempo.',
+        filters: 'The end of the loop is where stability is recovered or abandoned: LP and HP shape buildup, phase changes reinforcement and cancellation before signal returns to the crossfader.'
+      },
+      ru: {
+        default: 'SW1 сейчас держит clipper в петле, SW2 держит SSI2144 в петле, SW3 находится в LOOP-режиме, а SW4 показывает активный fallback-внутренний delay. Кликни по любому блоку диаграммы для фокусного описания.',
+        input: 'Стерео-вход попадает в инструмент до всех перестановок характерных блоков. Кроссфейдер — это дверь в рекурсию.',
+        xfade: 'Feedback Mix смешивает dry-сигнал с возвратом из петли. Именно он делает модуль играбельной feedback-средой, а не статичным insert-эффектом.',
+        'clip-main': 'Сейчас SW1 ставит clipper в основной тракт. В этой позиции он больше работает как front-end характерный каскад до сборки самой петли.',
+        'ssi-main': 'Сейчас SW2 ставит SSI2144 в основной тракт. Здесь он читается ближе к традиционному фильтру внутри линейной цепи.',
+        output: 'Стерео-выход — финальная сумма после routing-решений, возврата из петли и смены topology. В series-подходе модуль ощущается линейнее, в loop-режиме — как целая рекурсивная система.',
+        'clip-loop': 'Сейчас SW1 ставит clipper внутрь петли. Значит клиппинг влияет не только на тембр, но и на то, как петля накапливает и возвращает энергию.',
+        'ssi-loop': 'Сейчас SW2 ставит SSI2144 внутрь петли. Тогда фильтрация становится уже поведенческим контролем: resonance, cutoff и drive меняют саму динамику цикла.',
+        sr: 'Send/Return — это окно в архитектуре. Подключай сюда внешние процессоры или оставляй его пустым и отдавай это место внутреннему delay.',
+        delay: 'Когда он активен, внутренний PT2399 delay работает как внутренний insert для петли. Короткие тапы SW4 задают время, а назначаемый trigger-вход может стать внешним tap tempo.',
+        filters: 'Конец петли — место, где система либо стабилизируется, либо окончательно раскачивается: LP и HP контролируют накопление спектра, а phase меняет усиление и отмену перед возвратом в кроссфейдер.'
+      }
+    };
+
+    function setLanguage(next){
+      lang = next;
+      document.documentElement.lang = next;
+      document.getElementById('lang-en').classList.toggle('active', next==='en');
+      document.getElementById('lang-ru').classList.toggle('active', next==='ru');
+      document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = i18n[next][el.dataset.i18n]; });
+      document.querySelectorAll('[data-i18n-html]').forEach(el=>{ el.innerHTML = i18n[next][el.dataset.i18nHtml]; });
+      updateButtons();
+      setNote(activeBlock || 'default');
+    }
+
+    function updateButtons(){
+      const labels = {
+        en: {
+          sw1: state.sw1 ? 'LOOP' : 'MAIN',
+          sw2: state.sw2 ? 'LOOP' : 'MAIN',
+          sw3: state.sw3 ? 'SERIES' : 'LOOP',
+          sw4: state.sw4 ? 'DELAY ON' : 'DELAY OFF'
+        },
+        ru: {
+          sw1: state.sw1 ? 'LOOP' : 'MAIN',
+          sw2: state.sw2 ? 'LOOP' : 'MAIN',
+          sw3: state.sw3 ? 'SERIES' : 'LOOP',
+          sw4: state.sw4 ? 'DELAY ON' : 'DELAY OFF'
+        }
+      };
+      ['sw1','sw2','sw3','sw4'].forEach(k=>{
+        const b = document.getElementById('btn-'+k);
+        b.querySelector('span').textContent = labels[lang][k];
+        b.classList.toggle('active', state[k]);
+      });
+      updateDiagram();
+    }
+
+    function updateDiagram(){
+      const clipMain = document.querySelector('[data-block="clip-main"]');
+      const clipLoop = document.querySelector('[data-block="clip-loop"]');
+      const ssiMain = document.querySelector('[data-block="ssi-main"]');
+      const ssiLoop = document.querySelector('[data-block="ssi-loop"]');
+      const delay = document.querySelector('[data-block="delay"]');
+      const seriesBypass = document.getElementById('seriesBypass');
+      document.getElementById('m2').style.opacity = state.sw1 ? .18 : 1;
+      document.getElementById('l1').style.opacity = state.sw1 ? 1 : .18;
+      clipMain.style.opacity = state.sw1 ? .28 : 1;
+      clipLoop.style.opacity = state.sw1 ? 1 : .28;
+      document.getElementById('m3').style.opacity = state.sw2 ? .18 : 1;
+      document.getElementById('l2').style.opacity = state.sw2 ? 1 : .18;
+      ssiMain.style.opacity = state.sw2 ? .28 : 1;
+      ssiLoop.style.opacity = state.sw2 ? 1 : .28;
+      delay.style.opacity = state.sw4 ? 1 : .22;
+      document.getElementById('l3').style.opacity = state.sw4 ? 1 : .2;
+      seriesBypass.style.opacity = state.sw3 ? .9 : 0;
+      document.getElementById('toLoop').style.stroke = state.sw3 ? '#d0a764' : '#81a8ff';
+      document.getElementById('returnLoop').style.opacity = state.sw3 ? .25 : 1;
+    }
+
+    let activeBlock = null;
+    function setNote(key){
+      activeBlock = key === 'default' ? null : key;
+      document.getElementById('diagramNote').textContent = noteText[lang][key];
+      document.querySelectorAll('.blk').forEach(el=>el.classList.toggle('active', el.dataset.block === key));
+    }
+
+    document.getElementById('lang-en').addEventListener('click', ()=>setLanguage('en'));
+    document.getElementById('lang-ru').addEventListener('click', ()=>setLanguage('ru'));
+    document.querySelectorAll('.toggle').forEach(btn=>btn.addEventListener('click', ()=>{ state[btn.dataset.key] = !state[btn.dataset.key]; updateButtons(); setNote(activeBlock || 'default'); }));
+    document.querySelectorAll('.blk').forEach(el=>el.addEventListener('click', ()=>setNote(el.dataset.block)));
+
+    setLanguage('en');
+    updateButtons();
+    setNote('default');
+  </script>
+</body>
+</html>
