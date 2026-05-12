@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eurorack Panel Designer</title>
+
+  <!-- React 18 -->
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <!-- Babel standalone (JSX + TypeScript syntax) -->
+  <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { background: #111; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; overflow: hidden; }
+    /* Layout shells */
+    .app { display: flex; flex-direction: column; height: 100vh; }
+    .toolbar { height: 44px; background: #222; border-bottom: 1px solid #333; display: flex; align-items: center; padding: 0 12px; gap: 8px; flex-shrink: 0; }
+    .workspace { display: flex; flex: 1; overflow: hidden; }
+    .sidebar-left  { width: 200px; background: #1a1a1a; border-right: 1px solid #2a2a2a; overflow-y: auto; flex-shrink: 0; }
+    .canvas-wrap   { flex: 1; overflow: hidden; position: relative; background: #0d0d0d; }
+    .sidebar-right { width: 240px; background: #1a1a1a; border-left: 1px solid #2a2a2a; overflow-y: auto; flex-shrink: 0; }
+    /* Sidebar sections */
+    .section { padding: 10px; border-bottom: 1px solid #2a2a2a; }
+    .section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #666; margin-bottom: 8px; }
+    /* Form elements */
+    label { display: block; font-size: 11px; color: #888; margin-bottom: 3px; }
+    input[type=text], input[type=number], select, textarea {
+      width: 100%; background: #111; border: 1px solid #333; border-radius: 3px;
+      color: #e0e0e0; padding: 4px 7px; font-size: 12px; outline: none; font-family: inherit;
+    }
+    input[type=text]:focus, input[type=number]:focus, select:focus { border-color: #00d4ff; }
+    textarea { resize: vertical; min-height: 48px; font-family: inherit; }
+    button {
+      background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 3px;
+      color: #ccc; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: inherit;
+    }
+    button:hover { background: #333; border-color: #555; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
+    button.primary { background: #00526a; border-color: #007a9a; color: #fff; }
+    button.primary:hover { background: #006880; }
+    button.danger { background: #5a1a1a; border-color: #8a2a2a; color: #ff8888; }
+    button.danger:hover { background: #6a2020; }
+    button.active { background: #00526a; border-color: #00d4ff; color: #00d4ff; }
+    .btn-row { display: flex; gap: 5px; flex-wrap: wrap; }
+    .field-row { margin-bottom: 6px; }
+    .field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 6px; }
+    /* Misc */
+    .warning-item { background: rgba(255,50,50,0.12); border: 1px solid rgba(255,80,80,0.3); border-radius: 3px; padding: 5px 7px; margin-bottom: 5px; font-size: 11px; color: #ff8888; line-height: 1.4; }
+    .warning-item.warn { background: rgba(255,160,0,0.10); border-color: rgba(255,160,0,0.3); color: #ffaa44; }
+    .measurement-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; border-bottom: 1px solid #1f1f1f; }
+    .measurement-row span:first-child { color: #777; }
+    .measurement-row span:last-child { color: #00d4ff; font-family: monospace; }
+    .comp-lib-item { padding: 7px 10px; cursor: pointer; border-bottom: 1px solid #222; font-size: 12px; }
+    .comp-lib-item:hover { background: #222; color: #00d4ff; }
+    .comp-lib-item:last-child { border-bottom: none; }
+    .footer-bar { height: 22px; background: #151515; border-top: 1px solid #222; display: flex; align-items: center; padding: 0 12px; font-size: 10px; color: #555; flex-shrink: 0; }
+    .coord-readout { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); border: 1px solid #333; border-radius: 3px; padding: 3px 8px; font-size: 11px; font-family: monospace; color: #00d4ff; pointer-events: none; }
+    /* Toolbar items */
+    .tb-sep { width: 1px; height: 24px; background: #333; margin: 0 4px; }
+    .tb-label { font-size: 11px; color: #666; }
+    select.tb-select { width: auto; background: #1a1a1a; padding: 3px 6px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react,typescript">
+    const { useState, useReducer, useContext, createContext, useCallback,
+            useRef, useEffect, useMemo } = React;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+const HP_TO_MM = 5.08;
+const PANEL_HEIGHT_MM = 128.5;
+const MOUNTING_HOLE_DIAMETER_MM = 3.2;
+const MOUNTING_HOLE_KEEPOUT_R_MM = 6.0;
+const MAX_UNDO = 50;
+const STANDARD_HP = [2, 3, 4, 5, 6, 8, 10, 12, 14, 16];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════════════════════════════════════
+
+type ComponentType = 'pot9mm' | 'pot16mm' | 'jack' | 'slimjack' |
+                     'toggle' | 'led3mm' | 'encoder' | 'custom';
+
+type ViewMode = 'front' | 'rear' | 'drill' | 'combined';
+
+type GridSize = 0.5 | 1 | 2.5 | 5;
+
+interface ComponentDef {
+  type: ComponentType;
+  name: string;
+  holeDiameter: number;
+  frontDiameter: number;
+  rearBodyW: number;
+  rearBodyH: number;
+  rearDepth: number;
+  keepoutW: number;
+  keepoutH: number;
+  minSpacing: number;
+}
+
+interface PlacedComponent extends ComponentDef {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  rotation: number;
+  notes: string;
+}
+
+interface MountingHole {
+  id: string;
+  x: number;
+  y: number;
+}
+
+interface MountingHoleConfig {
+  enabled: boolean;
+  holes: MountingHole[];
+}
+
+interface PCBConfig {
+  enabled: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  depthLimit: number;
+}
+
+interface PanelConfig {
+  widthHP: number;
+  customHP: boolean;
+}
+
+interface GridConfig {
+  size: GridSize;
+  showMajor: boolean;
+}
+
+interface CollisionWarning {
+  ids: string[];
+  message: string;
+  severity: 'error' | 'warn';
+}
+
+interface AppState {
+  panel: PanelConfig;
+  components: PlacedComponent[];
+  selected: string[];
+  viewMode: ViewMode;
+  grid: GridConfig;
+  pcb: PCBConfig;
+  mountingHoles: MountingHoleConfig;
+  history: Omit<AppState, 'history' | 'future'>[];
+  future: Omit<AppState, 'history' | 'future'>[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPONENT LIBRARY
+// ═══════════════════════════════════════════════════════════════════════════
+
+const COMPONENT_LIBRARY: ComponentDef[] = [
+  { type: 'pot9mm',   name: 'Alpha 9mm Pot',    holeDiameter: 7.0, frontDiameter: 10.0, rearBodyW: 9.5,  rearBodyH: 10.5, rearDepth: 7.5,  keepoutW: 12.0, keepoutH: 13.0, minSpacing: 1.5 },
+  { type: 'pot16mm',  name: 'Alpha 16mm Pot',   holeDiameter: 7.0, frontDiameter: 10.0, rearBodyW: 16.5, rearBodyH: 17.0, rearDepth: 10.0, keepoutW: 19.0, keepoutH: 20.0, minSpacing: 2.0 },
+  { type: 'jack',     name: 'Thonkiconn Jack',  holeDiameter: 6.0, frontDiameter: 8.0,  rearBodyW: 8.5,  rearBodyH: 10.5, rearDepth: 12.0, keepoutW: 10.5, keepoutH: 12.5, minSpacing: 1.5 },
+  { type: 'slimjack', name: 'Slim Jack 3.5mm',  holeDiameter: 6.0, frontDiameter: 7.5,  rearBodyW: 7.0,  rearBodyH: 9.0,  rearDepth: 11.0, keepoutW: 8.5,  keepoutH: 10.5, minSpacing: 1.0 },
+  { type: 'toggle',   name: 'Toggle Switch',    holeDiameter: 6.0, frontDiameter: 8.0,  rearBodyW: 8.0,  rearBodyH: 13.0, rearDepth: 13.0, keepoutW: 10.0, keepoutH: 15.0, minSpacing: 1.5 },
+  { type: 'led3mm',   name: '3mm LED',          holeDiameter: 3.2, frontDiameter: 5.0,  rearBodyW: 4.0,  rearBodyH: 4.0,  rearDepth: 7.0,  keepoutW: 5.0,  keepoutH: 5.0,  minSpacing: 1.0 },
+  { type: 'encoder',  name: 'Encoder',          holeDiameter: 7.0, frontDiameter: 10.0, rearBodyW: 12.0, rearBodyH: 14.0, rearDepth: 12.0, keepoutW: 15.0, keepoutH: 17.0, minSpacing: 2.0 },
+  { type: 'custom',   name: 'Custom Hole',      holeDiameter: 5.0, frontDiameter: 7.0,  rearBodyW: 0,    rearBodyH: 0,    rearDepth: 0,    keepoutW: 8.0,  keepoutH: 8.0,  minSpacing: 1.0 },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PURE HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function panelWidthMM(panel: PanelConfig): number {
+  return panel.widthHP * HP_TO_MM;
+}
+
+function snapToGrid(val: number, grid: GridSize): number {
+  return Math.round(val / grid) * grid;
+}
+
+function defaultMountingHoles(widthMM: number): MountingHole[] {
+  const xL = 7.5;
+  const xR = widthMM - 7.5;
+  const yT = 3.0;
+  const yB = PANEL_HEIGHT_MM - 3.0;
+  return [
+    { id: 'mh-tl', x: xL, y: yT },
+    { id: 'mh-tr', x: xR, y: yT },
+    { id: 'mh-bl', x: xL, y: yB },
+    { id: 'mh-br', x: xR, y: yB },
+  ];
+}
+
+function aabbOverlap(
+  ax: number, ay: number, aw: number, ah: number,
+  bx: number, by: number, bw: number, bh: number
+): boolean {
+  return (
+    ax - aw / 2 < bx + bw / 2 &&
+    ax + aw / 2 > bx - bw / 2 &&
+    ay - ah / 2 < by + bh / 2 &&
+    ay + ah / 2 > by - bh / 2
+  );
+}
+
+function circleOverlap(
+  ax: number, ay: number, ar: number,
+  bx: number, by: number, br: number
+): number {
+  const dist = Math.hypot(bx - ax, by - ay);
+  return ar + br - dist;
+}
+
+function computeWarnings(
+  components: PlacedComponent[],
+  widthMM: number,
+  mountingHoles: MountingHoleConfig,
+  pcb: PCBConfig
+): CollisionWarning[] {
+  const warnings: CollisionWarning[] = [];
+
+  for (let i = 0; i < components.length; i++) {
+    const a = components[i];
+    const hr = a.holeDiameter / 2;
+
+    if (a.x - hr < 0) warnings.push({ ids: [a.id], message: `"${a.label || a.name}" hole exceeds left panel edge`, severity: 'error' });
+    if (a.x + hr > widthMM) warnings.push({ ids: [a.id], message: `"${a.label || a.name}" hole exceeds right panel edge`, severity: 'error' });
+    if (a.y - hr < 0) warnings.push({ ids: [a.id], message: `"${a.label || a.name}" hole exceeds top panel edge`, severity: 'error' });
+    if (a.y + hr > PANEL_HEIGHT_MM) warnings.push({ ids: [a.id], message: `"${a.label || a.name}" hole exceeds bottom panel edge`, severity: 'error' });
+
+    if (mountingHoles.enabled) {
+      for (const mh of mountingHoles.holes) {
+        const dist = Math.hypot(a.x - mh.x, a.y - mh.y);
+        const minDist = MOUNTING_HOLE_KEEPOUT_R_MM + a.holeDiameter / 2;
+        if (dist < minDist) {
+          warnings.push({ ids: [a.id], message: `"${a.label || a.name}" too close to mounting hole (${(minDist - dist).toFixed(1)}mm overlap)`, severity: 'error' });
+        }
+      }
+    }
+
+    for (let j = i + 1; j < components.length; j++) {
+      const b = components[j];
+      const nameA = `"${a.label || a.name}"`;
+      const nameB = `"${b.label || b.name}"`;
+
+      if (aabbOverlap(a.x, a.y, a.keepoutW, a.keepoutH, b.x, b.y, b.keepoutW, b.keepoutH)) {
+        const overlapX = (a.keepoutW / 2 + b.keepoutW / 2) - Math.abs(a.x - b.x);
+        const overlapY = (a.keepoutH / 2 + b.keepoutH / 2) - Math.abs(a.y - b.y);
+        const ovlp = Math.min(overlapX, overlapY).toFixed(1);
+        warnings.push({ ids: [a.id, b.id], message: `${nameA} and ${nameB} rear keepout zones overlap by ~${ovlp}mm`, severity: 'error' });
+      }
+
+      if (aabbOverlap(a.x, a.y, a.rearBodyW, a.rearBodyH, b.x, b.y, b.rearBodyW, b.rearBodyH)) {
+        warnings.push({ ids: [a.id, b.id], message: `${nameA} and ${nameB} rear bodies overlap`, severity: 'error' });
+      }
+
+      const frontOverlap = circleOverlap(a.x, a.y, a.frontDiameter / 2, b.x, b.y, b.frontDiameter / 2);
+      if (frontOverlap > 0) {
+        warnings.push({ ids: [a.id, b.id], message: `${nameA} and ${nameB} front diameters overlap by ${frontOverlap.toFixed(1)}mm`, severity: 'error' });
+      }
+
+      const edgeGap = Math.hypot(b.x - a.x, b.y - a.y) - a.frontDiameter / 2 - b.frontDiameter / 2;
+      const minNeeded = Math.max(a.minSpacing, b.minSpacing);
+      if (edgeGap >= 0 && edgeGap < minNeeded) {
+        warnings.push({ ids: [a.id, b.id], message: `${nameA} and ${nameB} closer than recommended spacing (${edgeGap.toFixed(1)}mm gap, ${minNeeded}mm recommended)`, severity: 'warn' });
+      }
+    }
+  }
+
+  // PCB bounds check
+  if (pcb.enabled) {
+    for (const c of components) {
+      const inBounds =
+        c.x - c.rearBodyW / 2 >= pcb.x &&
+        c.x + c.rearBodyW / 2 <= pcb.x + pcb.width &&
+        c.y - c.rearBodyH / 2 >= pcb.y &&
+        c.y + c.rearBodyH / 2 <= pcb.y + pcb.height;
+      if (!inBounds && c.rearBodyW > 0) {
+        warnings.push({ ids: [c.id], message: `"${c.label || c.name}" rear body is outside PCB bounds`, severity: 'warn' });
+      }
+      if (c.rearDepth > pcb.depthLimit) {
+        warnings.push({ ids: [c.id], message: `"${c.label || c.name}" rear depth ${c.rearDepth}mm exceeds PCB depth limit ${pcb.depthLimit}mm`, severity: 'warn' });
+      }
+    }
+  }
+
+  return warnings;
+}
+
+function computeMaxDepth(components: PlacedComponent[]): number {
+  return components.reduce((m, c) => Math.max(m, c.rearDepth), 0);
+}
+
+function distanceBetween(a: PlacedComponent, b: PlacedComponent): number {
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+function edgeClearance(a: PlacedComponent, b: PlacedComponent): number {
+  return distanceBetween(a, b) - a.frontDiameter / 2 - b.frontDiameter / 2;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+type AppAction =
+  | { type: 'SET_PANEL_HP'; hp: number }
+  | { type: 'ADD_COMPONENT'; def: ComponentDef; x: number; y: number }
+  | { type: 'UPDATE_COMPONENT'; id: string; patch: Partial<PlacedComponent> }
+  | { type: 'DELETE_SELECTED' }
+  | { type: 'DUPLICATE_SELECTED' }
+  | { type: 'SELECT'; ids: string[]; additive: boolean }
+  | { type: 'DESELECT_ALL' }
+  | { type: 'MOVE_COMPONENT'; id: string; x: number; y: number }
+  | { type: 'SET_VIEW_MODE'; mode: ViewMode }
+  | { type: 'SET_GRID_SIZE'; size: GridSize }
+  | { type: 'TOGGLE_MAJOR_GRID' }
+  | { type: 'SET_PCB'; patch: Partial<PCBConfig> }
+  | { type: 'SET_MOUNTING_HOLES'; patch: Partial<MountingHoleConfig> }
+  | { type: 'UPDATE_MOUNTING_HOLE'; id: string; x: number; y: number }
+  | { type: 'ALIGN'; axis: 'left'|'right'|'top'|'bottom'|'centerH'|'centerV' }
+  | { type: 'DISTRIBUTE'; axis: 'h'|'v' }
+  | { type: 'LOAD_PRESET'; components: PlacedComponent[] }
+  | { type: 'LOAD_STATE'; state: Omit<AppState,'history'|'future'> }
+  | { type: 'UNDO' }
+  | { type: 'REDO' };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INITIAL STATE
+// ═══════════════════════════════════════════════════════════════════════════
+
+function makeInitialState(): AppState {
+  const panel: PanelConfig = { widthHP: 8, customHP: false };
+  const widthMM = panelWidthMM(panel);
+  return {
+    panel,
+    components: [],
+    selected: [],
+    viewMode: 'front',
+    grid: { size: 1, showMajor: true },
+    pcb: { enabled: false, x: 0, y: 0, width: widthMM, height: PANEL_HEIGHT_MM, depthLimit: 50 },
+    mountingHoles: { enabled: true, holes: defaultMountingHoles(widthMM) },
+    history: [],
+    future: [],
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REDUCER
+// ═══════════════════════════════════════════════════════════════════════════
+
+function snapshot(s: AppState): Omit<AppState,'history'|'future'> {
+  const { history: _h, future: _f, ...rest } = s;
+  return rest;
+}
+
+function withHistory(prev: AppState, next: Omit<AppState,'history'|'future'>): AppState {
+  const history = [...prev.history.slice(-MAX_UNDO + 1), snapshot(prev)];
+  return { ...next, history, future: [] };
+}
+
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+
+    case 'SET_PANEL_HP': {
+      const panel = { ...state.panel, widthHP: action.hp };
+      const widthMM = panelWidthMM(panel);
+      return withHistory(state, {
+        ...snapshot(state),
+        panel,
+        mountingHoles: { ...state.mountingHoles, holes: defaultMountingHoles(widthMM) },
+      });
+    }
+
+    case 'ADD_COMPONENT': {
+      const comp: PlacedComponent = {
+        ...action.def,
+        id: crypto.randomUUID(),
+        label: action.def.name,
+        x: action.x,
+        y: action.y,
+        rotation: 0,
+        notes: '',
+      };
+      return withHistory(state, {
+        ...snapshot(state),
+        components: [...state.components, comp],
+        selected: [comp.id],
+      });
+    }
+
+    case 'UPDATE_COMPONENT': {
+      return withHistory(state, {
+        ...snapshot(state),
+        components: state.components.map(c =>
+          c.id === action.id ? { ...c, ...action.patch } : c
+        ),
+      });
+    }
+
+    case 'DELETE_SELECTED': {
+      return withHistory(state, {
+        ...snapshot(state),
+        components: state.components.filter(c => !state.selected.includes(c.id)),
+        selected: [],
+      });
+    }
+
+    case 'DUPLICATE_SELECTED': {
+      const dupes = state.components
+        .filter(c => state.selected.includes(c.id))
+        .map(c => ({ ...c, id: crypto.randomUUID(), x: c.x + 5, y: c.y + 5 }));
+      return withHistory(state, {
+        ...snapshot(state),
+        components: [...state.components, ...dupes],
+        selected: dupes.map(d => d.id),
+      });
+    }
+
+    case 'SELECT': {
+      const ids = action.additive
+        ? [...new Set([...state.selected, ...action.ids])]
+        : action.ids;
+      return { ...state, selected: ids };
+    }
+
+    case 'DESELECT_ALL':
+      return { ...state, selected: [] };
+
+    case 'MOVE_COMPONENT': {
+      return withHistory(state, {
+        ...snapshot(state),
+        components: state.components.map(c =>
+          c.id === action.id ? { ...c, x: action.x, y: action.y } : c
+        ),
+      });
+    }
+
+    case 'SET_VIEW_MODE':
+      return { ...state, viewMode: action.mode };
+
+    case 'SET_GRID_SIZE':
+      return { ...state, grid: { ...state.grid, size: action.size } };
+
+    case 'TOGGLE_MAJOR_GRID':
+      return { ...state, grid: { ...state.grid, showMajor: !state.grid.showMajor } };
+
+    case 'SET_PCB':
+      return withHistory(state, { ...snapshot(state), pcb: { ...state.pcb, ...action.patch } });
+
+    case 'SET_MOUNTING_HOLES':
+      return withHistory(state, { ...snapshot(state), mountingHoles: { ...state.mountingHoles, ...action.patch } });
+
+    case 'UPDATE_MOUNTING_HOLE':
+      return withHistory(state, {
+        ...snapshot(state),
+        mountingHoles: {
+          ...state.mountingHoles,
+          holes: state.mountingHoles.holes.map(h =>
+            h.id === action.id ? { ...h, x: action.x, y: action.y } : h
+          ),
+        },
+      });
+
+    case 'ALIGN': {
+      if (state.selected.length < 2) return state;
+      const sel = state.components.filter(c => state.selected.includes(c.id));
+      const getX = (c: PlacedComponent) => {
+        if (action.axis === 'left')    return sel.reduce((m,s)=>Math.min(m,s.x-s.frontDiameter/2),Infinity) + c.frontDiameter/2;
+        if (action.axis === 'right')   return sel.reduce((m,s)=>Math.max(m,s.x+s.frontDiameter/2),-Infinity) - c.frontDiameter/2;
+        if (action.axis === 'centerV') return sel.reduce((s,c)=>s+c.x,0)/sel.length;
+        return c.x;
+      };
+      const getY = (c: PlacedComponent) => {
+        if (action.axis === 'top')     return sel.reduce((m,s)=>Math.min(m,s.y-s.frontDiameter/2),Infinity) + c.frontDiameter/2;
+        if (action.axis === 'bottom')  return sel.reduce((m,s)=>Math.max(m,s.y+s.frontDiameter/2),-Infinity) - c.frontDiameter/2;
+        if (action.axis === 'centerH') return sel.reduce((s,c)=>s+c.y,0)/sel.length;
+        return c.y;
+      };
+      return withHistory(state, {
+        ...snapshot(state),
+        components: state.components.map(c =>
+          state.selected.includes(c.id) ? { ...c, x: getX(c), y: getY(c) } : c
+        ),
+      });
+    }
+
+    case 'DISTRIBUTE': {
+      if (state.selected.length < 3) return state;
+      const sel = [...state.components.filter(c => state.selected.includes(c.id))];
+      if (action.axis === 'h') {
+        sel.sort((a, b) => a.x - b.x);
+        const minX = sel[0].x, maxX = sel[sel.length-1].x;
+        const step = (maxX - minX) / (sel.length - 1);
+        const xMap = new Map(sel.map((c, i) => [c.id, minX + i * step]));
+        return withHistory(state, {
+          ...snapshot(state),
+          components: state.components.map(c => xMap.has(c.id) ? { ...c, x: xMap.get(c.id)! } : c),
+        });
+      } else {
+        sel.sort((a, b) => a.y - b.y);
+        const minY = sel[0].y, maxY = sel[sel.length-1].y;
+        const step = (maxY - minY) / (sel.length - 1);
+        const yMap = new Map(sel.map((c, i) => [c.id, minY + i * step]));
+        return withHistory(state, {
+          ...snapshot(state),
+          components: state.components.map(c => yMap.has(c.id) ? { ...c, y: yMap.get(c.id)! } : c),
+        });
+      }
+    }
+
+    case 'LOAD_PRESET':
+      return withHistory(state, { ...snapshot(state), components: action.components, selected: [] });
+
+    case 'LOAD_STATE':
+      return { ...action.state, history: [], future: [] };
+
+    case 'UNDO': {
+      if (state.history.length === 0) return state;
+      const prev = state.history[state.history.length - 1];
+      const history = state.history.slice(0, -1);
+      const future = [snapshot(state), ...state.future];
+      return { ...prev, history, future };
+    }
+
+    case 'REDO': {
+      if (state.future.length === 0) return state;
+      const next = state.future[0];
+      const future = state.future.slice(1);
+      const history = [...state.history, snapshot(state)];
+      return { ...next, history, future };
+    }
+
+    default:
+      return state;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONTEXT
+// ═══════════════════════════════════════════════════════════════════════════
+
+const AppStateCtx = createContext<AppState>(null!);
+const AppDispatchCtx = createContext<React.Dispatch<AppAction>>(null!);
+
+function AppProvider({ children }: { children: React.ReactNode }) {
+  const [state, dispatch] = useReducer(appReducer, undefined, makeInitialState);
+  return (
+    <AppStateCtx.Provider value={state}>
+      <AppDispatchCtx.Provider value={dispatch}>
+        {children}
+      </AppDispatchCtx.Provider>
+    </AppStateCtx.Provider>
+  );
+}
+
+const useAppState    = () => useContext(AppStateCtx);
+const useAppDispatch = () => useContext(AppDispatchCtx);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SVG CANVAS COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function GridLayer({ widthMM, heightMM, grid }: {
+  widthMM: number; heightMM: number; grid: GridConfig;
+}) {
+  const lines: React.ReactNode[] = [];
+  const minor = grid.size;
+  const major = 5;
+
+  for (let x = 0; x <= widthMM + 0.001; x += minor) {
+    const isMajor = grid.showMajor && Math.abs(x % major) < 0.001;
+    lines.push(
+      <line key={`vx${x}`} x1={x} y1={0} x2={x} y2={heightMM}
+        stroke={isMajor ? '#2a2a2a' : '#1c1c1c'} strokeWidth={isMajor ? 0.15 : 0.08} />
+    );
+  }
+  for (let y = 0; y <= heightMM + 0.001; y += minor) {
+    const isMajor = grid.showMajor && Math.abs(y % major) < 0.001;
+    lines.push(
+      <line key={`hy${y}`} x1={0} y1={y} x2={widthMM} y2={y}
+        stroke={isMajor ? '#2a2a2a' : '#1c1c1c'} strokeWidth={isMajor ? 0.15 : 0.08} />
+    );
+  }
+  return <g>{lines}</g>;
+}
+
+function MountingHolesLayer({ config }: { config: MountingHoleConfig }) {
+  if (!config.enabled) return null;
+  return (
+    <g>
+      {config.holes.map(h => (
+        <g key={h.id}>
+          <circle cx={h.x} cy={h.y} r={MOUNTING_HOLE_KEEPOUT_R_MM}
+            fill="rgba(255,0,0,0.06)" stroke="rgba(255,0,0,0.25)" strokeWidth={0.2} strokeDasharray="0.8 0.4" />
+          <circle cx={h.x} cy={h.y} r={MOUNTING_HOLE_DIAMETER_MM / 2}
+            fill="#0a0a0a" stroke="#555" strokeWidth={0.3} />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function PCBLayer({ pcb }: { pcb: PCBConfig }) {
+  if (!pcb.enabled) return null;
+  return (
+    <rect x={pcb.x} y={pcb.y} width={pcb.width} height={pcb.height}
+      fill="none" stroke="#004488" strokeWidth={0.4} strokeDasharray="2 1" />
+  );
+}
+
+interface ComponentsLayerProps {
+  components: PlacedComponent[];
+  selected: string[];
+  dragPreview: { id: string; x: number; y: number } | null;
+  viewMode: ViewMode;
+  warnings: CollisionWarning[];
+}
+
+function ComponentsLayer({ components, selected, dragPreview, viewMode, warnings }: ComponentsLayerProps) {
+  const warnIds  = new Set(warnings.flatMap(w => w.ids));
+  const errorIds = new Set(warnings.filter(w => w.severity === 'error').flatMap(w => w.ids));
+
+  return (
+    <g>
+      {components.map(c => {
+        // Apply live drag preview position
+        const cx = dragPreview?.id === c.id ? dragPreview.x : c.x;
+        const cy = dragPreview?.id === c.id ? dragPreview.y : c.y;
+
+        const isSel  = selected.includes(c.id);
+        const isErr  = errorIds.has(c.id);
+        const isWarn = warnIds.has(c.id) && !isErr;
+
+        return (
+          <g key={c.id} data-id={c.id} style={{ cursor: 'move' }}>
+
+            {/* Rear keepout zone — rear and combined views */}
+            {(viewMode === 'rear' || viewMode === 'combined') && c.keepoutW > 0 && (
+              <rect
+                x={cx - c.keepoutW / 2} y={cy - c.keepoutH / 2}
+                width={c.keepoutW} height={c.keepoutH}
+                fill={isErr ? 'rgba(255,50,50,0.25)' : 'rgba(255,160,0,0.2)'}
+                stroke={isErr ? '#ff3333' : '#ffa000'}
+                strokeWidth={0.25} strokeDasharray="1 0.5"
+              />
+            )}
+
+            {/* Rear body — rear view only */}
+            {viewMode === 'rear' && c.rearBodyW > 0 && (
+              <rect
+                x={cx - c.rearBodyW / 2} y={cy - c.rearBodyH / 2}
+                width={c.rearBodyW} height={c.rearBodyH}
+                fill={isErr ? 'rgba(255,50,50,0.5)' : 'rgba(255,100,0,0.5)'}
+                stroke={isErr ? '#ff3333' : '#ff6400'}
+                strokeWidth={0.3}
+              />
+            )}
+
+            {/* Front diameter ring — front, combined, drill views */}
+            {(viewMode === 'front' || viewMode === 'combined' || viewMode === 'drill') && (
+              <circle cx={cx} cy={cy} r={c.frontDiameter / 2}
+                fill={isErr ? 'rgba(255,50,50,0.12)' : 'rgba(200,200,200,0.07)'}
+                stroke={isErr ? '#ff3333' : isWarn ? '#ffa000' : '#444'}
+                strokeWidth={0.25}
+              />
+            )}
+
+            {/* Drill hole circle */}
+            {(viewMode === 'front' || viewMode === 'combined' || viewMode === 'drill') && (
+              <circle cx={cx} cy={cy} r={c.holeDiameter / 2}
+                fill="#090909" stroke={isSel ? '#00d4ff' : '#888'} strokeWidth={isSel ? 0.4 : 0.3}
+              />
+            )}
+
+            {/* Coordinate label — drill view only */}
+            {viewMode === 'drill' && (
+              <text x={cx} y={cy - c.holeDiameter / 2 - 1}
+                textAnchor="middle" fontSize={1.8} fill="#aaa">
+                {cx.toFixed(1)},{cy.toFixed(1)}
+              </text>
+            )}
+
+            {/* Component label — front and combined views */}
+            {(viewMode === 'front' || viewMode === 'combined') && c.label && (
+              <text x={cx} y={cy + c.frontDiameter / 2 + 2.5}
+                textAnchor="middle" fontSize={2} fill={isErr ? '#ff8888' : '#aaa'}>
+                {c.label}
+              </text>
+            )}
+
+            {/* Rear label — rear view */}
+            {viewMode === 'rear' && (
+              <text x={cx} y={cy + 0.8} textAnchor="middle" fontSize={2} fill="#888">
+                {c.label || c.name}
+              </text>
+            )}
+
+            {/* Selection bounding box */}
+            {isSel && (
+              <rect
+                x={cx - c.frontDiameter / 2 - 1} y={cy - c.frontDiameter / 2 - 1}
+                width={c.frontDiameter + 2} height={c.frontDiameter + 2}
+                fill="none" stroke="#00d4ff" strokeWidth={0.25} strokeDasharray="1.5 0.5"
+              />
+            )}
+
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+interface SVGCanvasProps {
+  svgRef: React.RefObject<SVGSVGElement>;
+  zoom: number;
+  pan: { x: number; y: number };
+  dragPreview: { id: string; x: number; y: number } | null;
+  onSVGMouseMove: (e: React.MouseEvent<SVGSVGElement>) => void;
+  onSVGMouseDown: (e: React.MouseEvent<SVGSVGElement>) => void;
+  onSVGMouseUp:   (e: React.MouseEvent<SVGSVGElement>) => void;
+  onWheel:        (e: React.WheelEvent<HTMLDivElement>) => void;
+  onWrapMouseDown:(e: React.MouseEvent<HTMLDivElement>) => void;
+  coordReadout: string;
+  warnings: CollisionWarning[];
+}
+
+function SVGCanvas({
+  svgRef, zoom, pan, dragPreview,
+  onSVGMouseMove, onSVGMouseDown, onSVGMouseUp,
+  onWheel, onWrapMouseDown,
+  coordReadout, warnings,
+}: SVGCanvasProps) {
+  const state    = useAppState();
+  const widthMM  = panelWidthMM(state.panel);
+  const heightMM = PANEL_HEIGHT_MM;
+  const PAD = 10;
+
+  return (
+    <div
+      className="canvas-wrap"
+      onWheel={onWheel}
+      onMouseDown={onWrapMouseDown}
+    >
+      <div style={{
+        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+        transformOrigin: 'center center',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <svg
+          ref={svgRef}
+          viewBox={`${-PAD} ${-PAD} ${widthMM + PAD * 2} ${heightMM + PAD * 2}`}
+          style={{ width: `${(widthMM + PAD * 2) * 4}px`, height: `${(heightMM + PAD * 2) * 4}px`, display: 'block' }}
+          onMouseMove={onSVGMouseMove}
+          onMouseDown={onSVGMouseDown}
+          onMouseUp={onSVGMouseUp}
+        >
+          {/* Grid */}
+          <GridLayer widthMM={widthMM} heightMM={heightMM} grid={state.grid} />
+
+          {/* Panel background */}
+          <rect x={0} y={0} width={widthMM} height={heightMM} fill="#242424" />
+
+          {/* Panel outline */}
+          <rect x={0} y={0} width={widthMM} height={heightMM}
+            fill="none" stroke="#666" strokeWidth={0.5} />
+
+          {/* Center lines */}
+          <line x1={widthMM/2} y1={0} x2={widthMM/2} y2={heightMM}
+            stroke="#2a3a2a" strokeWidth={0.1} strokeDasharray="2 2" />
+          <line x1={0} y1={heightMM/2} x2={widthMM} y2={heightMM/2}
+            stroke="#2a3a2a" strokeWidth={0.1} strokeDasharray="2 2" />
+
+          {/* Mounting holes */}
+          <MountingHolesLayer config={state.mountingHoles} />
+
+          {/* PCB outline */}
+          <PCBLayer pcb={state.pcb} />
+
+          {/* Components */}
+          <ComponentsLayer
+            components={state.components}
+            selected={state.selected}
+            dragPreview={dragPreview}
+            viewMode={state.viewMode}
+            warnings={warnings}
+          />
+        </svg>
+      </div>
+
+      {coordReadout && (
+        <div className="coord-readout">{coordReadout}</div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LEFT SIDEBAR
+// ═══════════════════════════════════════════════════════════════════════════
+
+function PanelSettings() {
+  const state    = useAppState();
+  const dispatch = useAppDispatch();
+  const widthMM  = panelWidthMM(state.panel);
+  const [customVal, setCustomVal] = useState('');
+
+  function setHP(hp: number) {
+    if (hp > 0) dispatch({ type: 'SET_PANEL_HP', hp });
+  }
+
+  return (
+    <div className="section">
+      <div className="section-title">Panel</div>
+
+      <div className="field-row">
+        <label>Standard HP</label>
+        <select className="tb-select" style={{ width: '100%' }}
+          value={STANDARD_HP.includes(state.panel.widthHP) ? String(state.panel.widthHP) : 'custom'}
+          onChange={e => {
+            if (e.target.value !== 'custom') setHP(Number(e.target.value));
+          }}>
+          {STANDARD_HP.map(hp => <option key={hp} value={hp}>{hp}HP</option>)}
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+
+      <div className="field-row">
+        <label>Custom HP</label>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <input type="number" min={1} max={84} step={0.1}
+            value={customVal !== '' ? customVal : state.panel.widthHP}
+            onChange={e => setCustomVal(e.target.value)}
+            onBlur={() => { const v = parseFloat(customVal); if (!isNaN(v) && v > 0) setHP(v); setCustomVal(''); }}
+            onKeyDown={e => { if (e.key === 'Enter') { const v = parseFloat(customVal); if (!isNaN(v) && v > 0) setHP(v); setCustomVal(''); } }}
+            style={{ flex: 1 }}
+          />
+          <button onClick={() => { const v = parseFloat(customVal); if (!isNaN(v) && v > 0) setHP(v); setCustomVal(''); }}>Set</button>
+        </div>
+      </div>
+
+      <div className="measurement-row"><span>Width</span><span>{widthMM.toFixed(2)} mm</span></div>
+      <div className="measurement-row"><span>Height</span><span>{PANEL_HEIGHT_MM} mm</span></div>
+    </div>
+  );
+}
+
+function ComponentLibraryPanel() {
+  const dispatch = useAppDispatch();
+  const state    = useAppState();
+  const widthMM  = panelWidthMM(state.panel);
+
+  function addComponent(def: ComponentDef) {
+    const x = snapToGrid(widthMM / 2, state.grid.size);
+    const y = snapToGrid(PANEL_HEIGHT_MM / 2, state.grid.size);
+    dispatch({ type: 'ADD_COMPONENT', def, x, y });
+  }
+
+  return (
+    <div className="section">
+      <div className="section-title">Add Component</div>
+      {COMPONENT_LIBRARY.map(def => (
+        <div key={def.type} className="comp-lib-item" onClick={() => addComponent(def)}>
+          {def.name}
+          <span style={{ color: '#555', fontSize: 10, marginLeft: 6 }}>Ø{def.holeDiameter}mm</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LeftSidebar() {
+  return (
+    <div className="sidebar-left">
+      <PanelSettings />
+      <ComponentLibraryPanel />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RIGHT SIDEBAR
+// ═══════════════════════════════════════════════════════════════════════════
+
+function NumField({ label, value, onChange, step = 0.1, min = 0 }: {
+  label: string; value: number; onChange: (v: number) => void; step?: number; min?: number;
+}) {
+  const [draft, setDraft] = useState('');
+  return (
+    <div className="field-row">
+      <label>{label}</label>
+      <input type="number" step={step} min={min}
+        value={draft !== '' ? draft : value.toFixed(2)}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => { const v = parseFloat(draft); if (!isNaN(v)) onChange(v); setDraft(''); }}
+        onKeyDown={e => { if (e.key === 'Enter') { const v = parseFloat(draft); if (!isNaN(v)) onChange(v); setDraft(''); } }}
+      />
+    </div>
+  );
+}
+
+function PropertiesPanel() {
+  const state    = useAppState();
+  const dispatch = useAppDispatch();
+
+  const selComps = state.components.filter(c => state.selected.includes(c.id));
+
+  if (selComps.length === 0) {
+    return (
+      <div className="section" style={{ color: '#555', fontSize: 11 }}>
+        Click a component to select it.
+      </div>
+    );
+  }
+
+  if (selComps.length > 1) {
+    return (
+      <div className="section">
+        <div className="section-title">{selComps.length} selected</div>
+        <div style={{ color: '#666', fontSize: 11 }}>Use align tools below.</div>
+      </div>
+    );
+  }
+
+  const c = selComps[0];
+  const patch = (p: Partial<PlacedComponent>) =>
+    dispatch({ type: 'UPDATE_COMPONENT', id: c.id, patch: p });
+
+  return (
+    <div className="section">
+      <div className="section-title">{c.name}</div>
+
+      <div className="field-row">
+        <label>Label</label>
+        <input type="text" value={c.label}
+          onChange={e => patch({ label: e.target.value })} />
+      </div>
+
+      <div className="field-pair">
+        <NumField label="X (mm)" value={c.x} onChange={v => patch({ x: v })} />
+        <NumField label="Y (mm)" value={c.y} onChange={v => patch({ y: v })} />
+      </div>
+
+      <NumField label="Rotation (°) [label only]" value={c.rotation} step={5} min={-360} onChange={v => patch({ rotation: v })} />
+
+      <div className="section-title" style={{ marginTop: 8 }}>Front</div>
+      <div className="field-pair">
+        <NumField label="Hole Ø (mm)" value={c.holeDiameter} onChange={v => patch({ holeDiameter: v })} />
+        <NumField label="Front Ø (mm)" value={c.frontDiameter} onChange={v => patch({ frontDiameter: v })} />
+      </div>
+      <NumField label="Min spacing (mm)" value={c.minSpacing} onChange={v => patch({ minSpacing: v })} />
+
+      <div className="section-title" style={{ marginTop: 8 }}>Rear Body</div>
+      <div className="field-pair">
+        <NumField label="Width (mm)" value={c.rearBodyW} onChange={v => patch({ rearBodyW: v })} />
+        <NumField label="Height (mm)" value={c.rearBodyH} onChange={v => patch({ rearBodyH: v })} />
+      </div>
+      <NumField label="Depth (mm)" value={c.rearDepth} onChange={v => patch({ rearDepth: v })} />
+
+      <div className="section-title" style={{ marginTop: 8 }}>Keepout Zone</div>
+      <div className="field-pair">
+        <NumField label="KO Width (mm)" value={c.keepoutW} onChange={v => patch({ keepoutW: v })} />
+        <NumField label="KO Height (mm)" value={c.keepoutH} onChange={v => patch({ keepoutH: v })} />
+      </div>
+
+      <div className="field-row" style={{ marginTop: 6 }}>
+        <label>Notes</label>
+        <textarea value={c.notes}
+          onChange={e => patch({ notes: e.target.value })} />
+      </div>
+
+      <div className="btn-row" style={{ marginTop: 8 }}>
+        <button onClick={() => dispatch({ type: 'DUPLICATE_SELECTED' })}>Duplicate</button>
+        <button className="danger" onClick={() => dispatch({ type: 'DELETE_SELECTED' })}>Delete</button>
+      </div>
+    </div>
+  );
+}
+
+function WarningsPanel({ warnings }: { warnings: CollisionWarning[] }) {
+  if (warnings.length === 0) {
+    return (
+      <div className="section">
+        <div className="section-title">Warnings</div>
+        <div style={{ color: '#3a7a3a', fontSize: 11 }}>✓ No collisions detected</div>
+      </div>
+    );
+  }
+  return (
+    <div className="section">
+      <div className="section-title">Warnings ({warnings.length})</div>
+      {warnings.map((w, i) => (
+        <div key={i} className={`warning-item${w.severity === 'warn' ? ' warn' : ''}`}>
+          {w.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MeasurementsPanel() {
+  const state    = useAppState();
+  const widthMM  = panelWidthMM(state.panel);
+  const selComps = state.components.filter(c => state.selected.includes(c.id));
+  const maxDepth = computeMaxDepth(state.components);
+
+  const rows: [string, string][] = [
+    ['Panel width',   `${widthMM.toFixed(2)} mm`],
+    ['Panel height',  `${PANEL_HEIGHT_MM} mm`],
+    ['Max rear depth', maxDepth > 0 ? `${maxDepth.toFixed(1)} mm` : '—'],
+    ['Components',    String(state.components.length)],
+  ];
+
+  if (selComps.length === 1) {
+    const c = selComps[0];
+    rows.push(
+      ['Selected X',  `${c.x.toFixed(2)} mm`],
+      ['Selected Y',  `${c.y.toFixed(2)} mm`],
+      ['Rear depth',  `${c.rearDepth.toFixed(1)} mm`],
+      ['Hole Ø',      `${c.holeDiameter.toFixed(1)} mm`],
+    );
+  }
+
+  if (selComps.length === 2) {
+    const [a, b] = selComps;
+    rows.push(
+      ['Center dist', `${distanceBetween(a, b).toFixed(2)} mm`],
+      ['Edge gap',    `${edgeClearance(a, b).toFixed(2)} mm`],
+    );
+  }
+
+  return (
+    <div className="section">
+      <div className="section-title">Measurements</div>
+      {rows.map(([k, v]) => (
+        <div key={k} className="measurement-row">
+          <span>{k}</span><span>{v}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AlignTools() {
+  const dispatch = useAppDispatch();
+  const state    = useAppState();
+  const selCount = state.selected.length;
+
+  return (
+    <div className="section">
+      <div className="section-title">Align (2+ selected)</div>
+      <div className="btn-row">
+        <button disabled={selCount < 2} onClick={() => dispatch({ type: 'ALIGN', axis: 'left' })}>⊢ L</button>
+        <button disabled={selCount < 2} onClick={() => dispatch({ type: 'ALIGN', axis: 'right' })}>R ⊣</button>
+        <button disabled={selCount < 2} onClick={() => dispatch({ type: 'ALIGN', axis: 'top' })}>⊤ Top</button>
+        <button disabled={selCount < 2} onClick={() => dispatch({ type: 'ALIGN', axis: 'bottom' })}>Bot ⊥</button>
+        <button disabled={selCount < 2} onClick={() => dispatch({ type: 'ALIGN', axis: 'centerH' })}>— CtrH</button>
+        <button disabled={selCount < 2} onClick={() => dispatch({ type: 'ALIGN', axis: 'centerV' })}>| CtrV</button>
+      </div>
+      <div className="section-title" style={{ marginTop: 8 }}>Distribute (3+ selected)</div>
+      <div className="btn-row">
+        <button disabled={selCount < 3} onClick={() => dispatch({ type: 'DISTRIBUTE', axis: 'h' })}>⇔ Horiz</button>
+        <button disabled={selCount < 3} onClick={() => dispatch({ type: 'DISTRIBUTE', axis: 'v' })}>⇕ Vert</button>
+      </div>
+    </div>
+  );
+}
+
+function PCBPanel() {
+  const state    = useAppState();
+  const dispatch = useAppDispatch();
+  const pcb      = state.pcb;
+  const set      = (p: Partial<PCBConfig>) => dispatch({ type: 'SET_PCB', patch: p });
+
+  return (
+    <div className="section">
+      <div className="section-title">PCB Planning</div>
+      <div className="field-row">
+        <label>
+          <input type="checkbox" checked={pcb.enabled}
+            onChange={e => set({ enabled: e.target.checked })} />
+          {' '}Enable PCB outline
+        </label>
+      </div>
+      {pcb.enabled && (
+        <>
+          <div className="field-pair">
+            <div className="field-row">
+              <label>Width (mm)</label>
+              <input type="number" step={0.5} value={pcb.width}
+                onChange={e => set({ width: +e.target.value })} />
+            </div>
+            <div className="field-row">
+              <label>Height (mm)</label>
+              <input type="number" step={0.5} value={pcb.height}
+                onChange={e => set({ height: +e.target.value })} />
+            </div>
+          </div>
+          <div className="field-pair">
+            <div className="field-row">
+              <label>X offset</label>
+              <input type="number" step={0.5} value={pcb.x}
+                onChange={e => set({ x: +e.target.value })} />
+            </div>
+            <div className="field-row">
+              <label>Y offset</label>
+              <input type="number" step={0.5} value={pcb.y}
+                onChange={e => set({ y: +e.target.value })} />
+            </div>
+          </div>
+          <div className="field-row">
+            <label>Depth limit (mm)</label>
+            <input type="number" step={1} value={pcb.depthLimit}
+              onChange={e => set({ depthLimit: +e.target.value })} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function MountingHolesPanel() {
+  const state    = useAppState();
+  const dispatch = useAppDispatch();
+  const mh       = state.mountingHoles;
+
+  return (
+    <div className="section">
+      <div className="section-title">Mounting Holes</div>
+      <div className="field-row">
+        <label>
+          <input type="checkbox" checked={mh.enabled}
+            onChange={e => dispatch({ type: 'SET_MOUNTING_HOLES', patch: { enabled: e.target.checked } })} />
+          {' '}Show mounting holes
+        </label>
+      </div>
+      {mh.enabled && mh.holes.map(h => (
+        <div key={h.id} style={{ display: 'flex', gap: 4, marginBottom: 4, alignItems: 'center' }}>
+          <span style={{ color: '#666', fontSize: 10, width: 28, flexShrink: 0 }}>
+            {h.id.replace('mh-', '').toUpperCase()}
+          </span>
+          <input type="number" step={0.1} style={{ flex: 1 }} value={h.x.toFixed(1)}
+            onChange={e => dispatch({ type: 'UPDATE_MOUNTING_HOLE', id: h.id, x: +e.target.value, y: h.y })} />
+          <input type="number" step={0.1} style={{ flex: 1 }} value={h.y.toFixed(1)}
+            onChange={e => dispatch({ type: 'UPDATE_MOUNTING_HOLE', id: h.id, x: h.x, y: +e.target.value })} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RightSidebar({ warnings }: { warnings: CollisionWarning[] }) {
+  return (
+    <div className="sidebar-right">
+      <PropertiesPanel />
+      <MeasurementsPanel />
+      <WarningsPanel warnings={warnings} />
+      <AlignTools />
+      <PCBPanel />
+      <MountingHolesPanel />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EXPORT HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function exportJSON(state: AppState) {
+  const { history: _h, future: _f, ...clean } = state;
+  const blob = new Blob([JSON.stringify(clean, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'panel-layout.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportSVG(state: AppState) {
+  const widthMM  = panelWidthMM(state.panel);
+  const heightMM = PANEL_HEIGHT_MM;
+
+  const mountStr = state.mountingHoles.enabled
+    ? state.mountingHoles.holes.map(h =>
+        `  <circle cx="${h.x.toFixed(3)}" cy="${h.y.toFixed(3)}" r="${(MOUNTING_HOLE_DIAMETER_MM/2).toFixed(3)}" fill="white" stroke="#333" stroke-width="0.3"/>`
+      ).join('\n')
+    : '';
+
+  const holesStr = state.components.map(c =>
+    `  <circle cx="${c.x.toFixed(3)}" cy="${c.y.toFixed(3)}" r="${(c.holeDiameter/2).toFixed(3)}" fill="white" stroke="#333" stroke-width="0.3"/>`
+  ).join('\n');
+
+  function escapeXml(s: string): string {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  const labelsStr = state.components.map(c =>
+    `  <text x="${c.x.toFixed(3)}" y="${(c.y + c.frontDiameter/2 + 2.5).toFixed(3)}" text-anchor="middle" font-size="2" fill="#333">${escapeXml(c.label || c.name)}</text>`
+  ).join('\n');
+
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- Eurorack Panel Designer export -->
+<!-- Panel: ${state.panel.widthHP}HP = ${widthMM.toFixed(2)}mm x ${heightMM}mm -->
+<!-- WARNING: Dimensions are planning estimates. Verify all parts with datasheets/calipers before manufacturing. -->
+<svg xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 ${widthMM.toFixed(3)} ${heightMM.toFixed(3)}"
+  width="${widthMM.toFixed(3)}mm" height="${heightMM.toFixed(3)}mm">
+  <rect x="0" y="0" width="${widthMM.toFixed(3)}" height="${heightMM.toFixed(3)}" fill="#ccc" stroke="black" stroke-width="0.5"/>
+${mountStr}
+${holesStr}
+${labelsStr}
+</svg>`;
+
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'panel.svg'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function fallbackCopy(text: string) {
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.style.position = 'fixed'; el.style.opacity = '0';
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand('copy');
+  document.body.removeChild(el);
+}
+
+function copyTable(components: PlacedComponent[]) {
+  const header = 'Name\tType\tX (mm)\tY (mm)\tHole Ø (mm)\tFront Ø (mm)\tRear Depth (mm)';
+  const rows   = components.map(c =>
+    [c.label || c.name, c.type, c.x.toFixed(2), c.y.toFixed(2),
+     c.holeDiameter.toFixed(1), c.frontDiameter.toFixed(1), c.rearDepth.toFixed(1)].join('\t')
+  );
+  const text = [header, ...rows].join('\n');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRESETS
+// ═══════════════════════════════════════════════════════════════════════════
+
+const PRESETS: Record<string, Omit<PlacedComponent,'id'>[]> = {
+  '4HP utility': [
+    { ...COMPONENT_LIBRARY[0], label: 'Knob',  x: 10.16, y: 30,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[5], label: 'LED',   x: 10.16, y: 60,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[2], label: 'In',    x: 10.16, y: 88,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[2], label: 'Out',   x: 10.16, y: 108, rotation: 0, notes: '' },
+  ],
+  '6HP utility': [
+    { ...COMPONENT_LIBRARY[0], label: 'Knob A', x: 10,   y: 25,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[0], label: 'Knob B', x: 20,   y: 25,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[2], label: 'In 1',   x: 10,   y: 75,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[2], label: 'In 2',   x: 20,   y: 75,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[2], label: 'Out 1',  x: 10,   y: 100, rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[2], label: 'Out 2',  x: 20,   y: 100, rotation: 0, notes: '' },
+  ],
+  '8HP utility': [
+    { ...COMPONENT_LIBRARY[0], label: 'A',     x: 10,  y: 25,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[0], label: 'B',     x: 30,  y: 25,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[4], label: 'SW',    x: 20,  y: 55,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[2], label: 'In 1',  x: 10,  y: 80,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[2], label: 'In 2',  x: 20,  y: 80,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[2], label: 'Out 1', x: 30,  y: 80,  rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[2], label: 'Out 2', x: 10,  y: 100, rotation: 0, notes: '' },
+    { ...COMPONENT_LIBRARY[5], label: 'LED',   x: 30,  y: 100, rotation: 0, notes: '' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TOOLBAR
+// ═══════════════════════════════════════════════════════════════════════════
+
+function Toolbar({ onImport }: { onImport: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
+  const state    = useAppState();
+  const dispatch = useAppDispatch();
+
+  function loadPreset(key: string) {
+    const comps: PlacedComponent[] = PRESETS[key].map(c => ({ ...c, id: crypto.randomUUID() }));
+    dispatch({ type: 'LOAD_PRESET', components: comps });
+  }
+
+  return (
+    <div className="toolbar">
+      <span style={{ fontWeight: 700, letterSpacing: '0.05em', color: '#aaa', fontSize: 12 }}>
+        PANEL DESIGNER
+      </span>
+      <div className="tb-sep" />
+
+      <span className="tb-label">View:</span>
+      {(['front','rear','drill','combined'] as ViewMode[]).map(m => (
+        <button key={m}
+          className={state.viewMode === m ? 'active' : ''}
+          onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: m })}>
+          {m.charAt(0).toUpperCase() + m.slice(1)}
+        </button>
+      ))}
+
+      <div className="tb-sep" />
+
+      <span className="tb-label">Grid:</span>
+      <select className="tb-select"
+        value={state.grid.size}
+        onChange={e => dispatch({ type: 'SET_GRID_SIZE', size: +e.target.value as GridSize })}>
+        <option value={0.5}>0.5mm</option>
+        <option value={1}>1mm</option>
+        <option value={2.5}>2.5mm</option>
+        <option value={5}>5mm</option>
+      </select>
+      <button
+        className={state.grid.showMajor ? 'active' : ''}
+        onClick={() => dispatch({ type: 'TOGGLE_MAJOR_GRID' })}>
+        5mm grid
+      </button>
+
+      <div className="tb-sep" />
+
+      <span className="tb-label">Preset:</span>
+      {Object.keys(PRESETS).map(k => (
+        <button key={k} onClick={() => loadPreset(k)}>{k}</button>
+      ))}
+
+      <div className="tb-sep" />
+
+      <button onClick={() => exportSVG(state)}>Export SVG</button>
+      <button onClick={() => exportJSON(state)}>Save JSON</button>
+      <button onClick={() => document.getElementById('json-import-input')!.click()}>Load JSON</button>
+      <input
+        id="json-import-input"
+        type="file"
+        accept=".json"
+        style={{ display: 'none' }}
+        onChange={onImport}
+      />
+      <button onClick={() => copyTable(state.components)}>Copy Table</button>
+
+      <div className="tb-sep" />
+
+      <button
+        disabled={state.history.length === 0}
+        onClick={() => dispatch({ type: 'UNDO' })}>
+        ↩ Undo
+      </button>
+      <button
+        disabled={state.future.length === 0}
+        onClick={() => dispatch({ type: 'REDO' })}>
+        ↪ Redo
+      </button>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APP ROOT
+// ═══════════════════════════════════════════════════════════════════════════
+
+function App() {
+  const state    = useAppState();
+  const dispatch = useAppDispatch();
+  const widthMM  = panelWidthMM(state.panel);
+
+  // Zoom and pan (local UI state — not part of undo history)
+  const [zoom, setZoom] = useState(1);
+  const [pan,  setPan]  = useState({ x: 0, y: 0 });
+
+  // Drag: track which component is being dragged and the current preview position
+  const [dragging, setDragging] = useState<{ id: string; offX: number; offY: number } | null>(null);
+  const [dragPreview, setDragPreview] = useState<{ id: string; x: number; y: number } | null>(null);
+
+  // Pan: middle-mouse or Alt+drag
+  const [panning, setPanning] = useState<{ startX: number; startY: number; panStart: { x: number; y: number } } | null>(null);
+
+  // Hover coordinate readout
+  const [coordReadout, setCoordReadout] = useState('');
+
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // Collision warnings — recomputed on every state change
+  const warnings = useMemo(
+    () => computeWarnings(state.components, widthMM, state.mountingHoles, state.pcb),
+    [state.components, widthMM, state.mountingHoles, state.pcb]
+  );
+
+  // ── Coordinate conversion ──────────────────────────────────────────────
+  function clientToMM(clientX: number, clientY: number): { x: number; y: number } | null {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const pt = svg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const mm = pt.matrixTransform(ctm.inverse());
+    return { x: mm.x, y: mm.y };
+  }
+
+  // ── SVG mouse events ───────────────────────────────────────────────────
+  function onSVGMouseDown(e: React.MouseEvent<SVGSVGElement>) {
+    if (e.button !== 0) return;
+    const mm = clientToMM(e.clientX, e.clientY);
+    if (!mm) return;
+
+    const el    = e.target as SVGElement;
+    const group = el.closest('[data-id]') as SVGElement | null;
+
+    if (group) {
+      e.stopPropagation(); // prevent canvas pan from triggering
+      const id   = group.getAttribute('data-id')!;
+      const comp = state.components.find(c => c.id === id)!;
+
+      if (e.shiftKey) {
+        dispatch({ type: 'SELECT', ids: [id], additive: true });
+      } else if (!state.selected.includes(id)) {
+        dispatch({ type: 'SELECT', ids: [id], additive: false });
+      }
+
+      setDragging({ id, offX: mm.x - comp.x, offY: mm.y - comp.y });
+      setDragPreview({ id, x: comp.x, y: comp.y });
+    } else {
+      dispatch({ type: 'DESELECT_ALL' });
+    }
+  }
+
+  function onSVGMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    const mm = clientToMM(e.clientX, e.clientY);
+    if (!mm) return;
+
+    // Update coordinate readout
+    setCoordReadout(`x: ${mm.x.toFixed(1)} mm   y: ${mm.y.toFixed(1)} mm`);
+
+    // Update drag preview (does NOT dispatch to reducer — avoids undo stack pollution)
+    if (dragging) {
+      const rawX = mm.x - dragging.offX;
+      const rawY = mm.y - dragging.offY;
+      setDragPreview({
+        id: dragging.id,
+        x: snapToGrid(rawX, state.grid.size),
+        y: snapToGrid(rawY, state.grid.size),
+      });
+    }
+  }
+
+  function onSVGMouseUp(_e: React.MouseEvent<SVGSVGElement>) {
+    // State cleared here; the global mouseup handler (below) commits the move
+    setDragging(null);
+    setDragPreview(null);
+  }
+
+  // ── Canvas pan (Alt+drag or middle-mouse on wrapper div) ───────────────
+  function onWrapMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      e.preventDefault();
+      setPanning({ startX: e.clientX, startY: e.clientY, panStart: pan });
+    }
+  }
+
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      if (!panning) return;
+      setPan({
+        x: panning.panStart.x + e.clientX - panning.startX,
+        y: panning.panStart.y + e.clientY - panning.startY,
+      });
+    }
+    function onMouseUp() { setPanning(null); }
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup',   onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup',   onMouseUp);
+    };
+  }, [panning]);
+
+  // ── Global drag cleanup — commits move even if mouseup happens outside SVG ──
+  useEffect(() => {
+    function onGlobalMouseUp() {
+      if (dragging && dragPreview) {
+        dispatch({ type: 'MOVE_COMPONENT', id: dragging.id, x: dragPreview.x, y: dragPreview.y });
+      }
+      setDragging(null);
+      setDragPreview(null);
+    }
+    window.addEventListener('mouseup', onGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', onGlobalMouseUp);
+  }, [dragging, dragPreview, dispatch]);
+
+  // ── Zoom ───────────────────────────────────────────────────────────────
+  function onWheel(e: React.WheelEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setZoom(z => Math.max(0.25, Math.min(6, z * (e.deltaY < 0 ? 1.1 : 0.9))));
+  }
+
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        dispatch({ type: 'DELETE_SELECTED' });
+      } else if (e.key === 'd' || e.key === 'D') {
+        dispatch({ type: 'DUPLICATE_SELECTED' });
+      } else if (e.key === 'Escape') {
+        dispatch({ type: 'DESELECT_ALL' });
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        dispatch({ type: 'UNDO' });
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+        e.preventDefault();
+        dispatch({ type: 'REDO' });
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        dispatch({ type: 'SELECT', ids: state.components.map(c => c.id), additive: false });
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        exportJSON(state);
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        exportSVG(state);
+      } else if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+        if (state.selected.length === 0) return;
+        e.preventDefault();
+        const d  = e.shiftKey ? 0.1 : state.grid.size;
+        const dx = e.key === 'ArrowLeft' ? -d : e.key === 'ArrowRight' ? d : 0;
+        const dy = e.key === 'ArrowUp'   ? -d : e.key === 'ArrowDown'  ? d : 0;
+        state.selected.forEach(id => {
+          const c = state.components.find(cc => cc.id === id);
+          if (c) dispatch({ type: 'MOVE_COMPONENT', id, x: c.x + dx, y: c.y + dy });
+        });
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [state, dispatch]);
+
+  // ── JSON Import ────────────────────────────────────────────────────────
+  function onImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const loaded = JSON.parse(ev.target!.result as string);
+        if (state.components.length > 0 &&
+            !confirm('Replace current layout with loaded file?')) return;
+        dispatch({ type: 'LOAD_STATE', state: loaded });
+      } catch {
+        alert('Invalid JSON file — could not parse.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // reset so same file can be re-imported
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────
+  return (
+    <div className="app">
+      <Toolbar onImport={onImport} />
+      <div className="workspace">
+        <LeftSidebar />
+        <SVGCanvas
+          svgRef={svgRef}
+          zoom={zoom}
+          pan={pan}
+          dragPreview={dragPreview}
+          onSVGMouseMove={onSVGMouseMove}
+          onSVGMouseDown={onSVGMouseDown}
+          onSVGMouseUp={onSVGMouseUp}
+          onWheel={onWheel}
+          onWrapMouseDown={onWrapMouseDown}
+          coordReadout={coordReadout}
+          warnings={warnings}
+        />
+        <RightSidebar warnings={warnings} />
+      </div>
+      <div className="footer-bar">
+        ⚠ Dimensions are planning estimates. Verify all parts with datasheets/calipers before manufacturing.
+        &nbsp;|&nbsp; Alt+drag or middle-mouse to pan &nbsp;|&nbsp; Scroll to zoom
+        &nbsp;|&nbsp; Del=delete &nbsp;D=duplicate &nbsp;Ctrl+Z/Y=undo/redo &nbsp;Ctrl+A=select all
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <AppProvider><App /></AppProvider>
+);
+  </script>
+</body>
+</html>
